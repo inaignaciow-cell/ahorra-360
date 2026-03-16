@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Tu panel de Ahorra 360. Controla y reduce todas tus facturas del hogar con IA." />
+    <meta name="theme-color" content="#4F46E5" />
+    <title>Ahorra 360 — Panel</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="stylesheet" href="styles/globals.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <!-- Chart.js para gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(() => console.log('[SW] Registered'))
+                .catch(err => console.warn('[SW] Registration failed', err));
+        }
+    </script>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* DASHBOARD LAYOUT */
+        .app-header {
+            height: var(--header-h);
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-6);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        @media(max-width:768px) {
+            .app-header {
+                padding: 0 var(--space-4);
+            }
+        }
+
+        .sidebar-logo {
+            height: var(--header-h);
+            display: flex;
+            align-items: center;
+            padding: 0 var(--space-6);
+            border-bottom: 1px solid var(--border);
+            text-decoration: none;
+        }
+
+        .sidebar-nav {
+            padding: var(--space-4);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+            flex: 1;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: 0.75rem var(--space-4);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: var(--font-medium);
+            transition: var(--transition-fast);
+        }
+
+        .sidebar-link:hover {
+            background: var(--bg-surface-2);
+            color: var(--text-primary);
+        }
+
+        .sidebar-link.active {
+            background: var(--color-primary-50);
+            color: var(--color-primary);
+            font-weight: var(--font-semibold);
+        }
+
+        [data-theme="dark"] .sidebar-link.active {
+            background: var(--color-primary-100);
+        }
+
+        .sidebar-footer {
+            padding: var(--space-4);
+            border-top: 1px solid var(--border);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: var(--font-bold);
+            font-size: var(--text-sm);
+        }
+
+        .user-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .user-name {
+            font-size: var(--text-sm);
+            font-weight: var(--font-semibold);
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        .user-email {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        /* MOBILE OVERLAY */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 90;
+            backdrop-filter: blur(2px);
+        }
+
+        .sidebar-overlay.open {
+            display: block;
+        }
+
+        .page-header {
+            margin-bottom: var(--space-6);
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: var(--space-4);
+            flex-wrap: wrap;
+        }
+
+        .page-title {
+            font-size: var(--text-2xl);
+            font-weight: var(--font-extrabold);
+            font-family: var(--font-heading);
+        }
+
+        .page-sub {
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* DASHBOARD CONTENT */
+        .doc-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+            margin-top: var(--space-6);
+        }
+
+        .doc-item {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-4) var(--space-5);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-4);
+            transition: var(--transition-fast);
+            cursor: pointer;
+        }
+
+        .doc-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--border-strong);
+        }
+
+        @media(max-width:640px) {
+            .doc-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-3);
+            }
+
+            .doc-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        .doc-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .doc-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .doc-title {
+            font-weight: var(--font-semibold);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .doc-meta {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .card-interactive {
+            cursor: pointer;
+            transition: var(--transition-bounce);
+        }
+
+        .card-interactive:hover {
+            transform: translateY(-4px) scale(1.01);
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: var(--font-bold);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-green { background: #D1FAE5; color: #065F46; } /* Emerald */
+        .badge-amber { background: #FEF3C7; color: #92400E; } /* Amber */
+        .badge-red { background: #FEE2E2; color: #991B1B; }   /* Red */
+        .badge-blue { background: #DBEAFE; color: #1E40AF; }  /* Blue */
+        .badge-gray { background: var(--bg-surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+        .badge-ai { background: linear-gradient(135deg, var(--color-primary), #D946EF); color: white; border: none; font-family:var(--font-mono); font-weight:var(--font-normal); padding: 2px 8px; font-size: 0.65rem; }
+        
+        .doc-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-6);
+            text-align: right;
+        }
+
+        .doc-amount {
+            font-size: var(--text-lg);
+            font-weight: var(--font-extrabold);
+            font-family: var(--font-heading);
+        }
+
+        /* FACTURA DETALLE */
+        .receipt-container {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-2xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .receipt-header {
+            padding: var(--space-6);
+            border-bottom: 1px dashed var(--border-strong);
+            background: var(--bg-surface-2);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .receipt-body {
+            padding: var(--space-6);
+        }
+
+        .receipt-section {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+
+        .receipt-section-title {
+            font-size: var(--text-sm);
+            font-weight: var(--font-bold);
+            color: var(--color-primary);
+            margin-bottom: var(--space-3);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--space-2) 0;
+            font-size: var(--text-sm);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .receipt-row:last-child {
+            border-bottom: none;
+        }
+
+        .receipt-val {
+            font-weight: var(--font-semibold);
+            text-align: right;
+        }
+
+        .explanation-box {
+            background: var(--color-primary-50);
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
+            display: flex;
+            gap: var(--space-3);
+            margin-top: var(--space-3);
+        }
+
+        [data-theme="dark"] .explanation-box {
+            background: var(--color-primary-100);
+        }
+
+        .chat-fab {
+            position: fixed;
+            bottom: var(--space-6);
+            right: var(--space-6);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            transition: var(--transition-base);
+            z-index: 80;
+        }
+
+        .chat-fab:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-xl);
+            background: var(--color-primary-dark);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-strong);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-12) var(--space-6);
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            background: var(--bg-surface-2);
+            margin-top: var(--space-6);
+        }
+
+        .upload-area:hover {
+            border-color: var(--color-primary);
+            background: var(--color-primary-50);
+        }
+
+        [data-theme="dark"] .upload-area:hover {
+            background: var(--color-primary-100);
+        }
+
+        /* New CSS for upload progress modal */
+        .upload-step {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            color: var(--text-muted);
+            padding: var(--space-2) 0;
+        }
+
+        .upload-step.active {
+            color: var(--color-primary);
+            font-weight: var(--font-semibold);
+        }
+
+        .upload-step.done {
+            color: var(--text-primary);
+        }
+
+        .upload-step i {
+            opacity: 0.5;
+        }
+
+        .upload-step.active i {
+            opacity: 1;
+            animation: pulse 1s infinite alternate;
+        }
+
+        .upload-step.done i {
+            opacity: 1;
+            color: var(--color-accent);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <aside class="sidebar" id="sidebar">
+        <a href="#bandeja" class="sidebar-logo">
+            <div class="logo-mark" style="width:28px;height:28px;font-size:14px;box-shadow:none">A</div>
+            <span class="logo-text" style="font-size:1.1rem;margin-left:8px">Ahorra <span>360</span></span>
+        </a>
+        <nav class="sidebar-nav">
+            <a href="#bandeja" class="sidebar-link active" data-target="bandeja"><i data-lucide="inbox" width="20"></i>
+                Bandeja</a>
+            <a href="#comparador" class="sidebar-link" data-target="comparador"><i data-lucide="arrow-left-right"
+                    width="20"></i> Comparador</a>
+            <a href="#alertas" class="sidebar-link" data-target="alertas"><i data-lucide="bell" width="20"></i> Alertas
+                <span class="badge badge-amber" style="margin-left:auto">2</span></a>
+            <a href="#hogar" class="sidebar-link" data-target="hogar"><i data-lucide="home" width="20"></i> Mi Hogar</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile mb-4">
+                <div class="user-avatar">LG</div>
+                <div class="user-info">
+                    <div class="user-name" id="sidebarUserName">Laura García</div>
+                    <div class="user-email">laura.g@ejemplo.com</div>
+                </div>
+                <button class="btn btn-icon btn-ghost" title="Ajustes" onclick="location.hash='#hogar'"><i
+                        data-lucide="settings" width="18"></i></button>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="theme-btn" id="themeBtn" title="Cambiar tema" style="width:100%">
+                    <i data-lucide="sun" id="themeIconSun" width="16" style="margin-right:8px"></i>
+                    <i data-lucide="moon" id="themeIconMoon" width="16" style="display:none;margin-right:8px"></i>
+                    <span style="font-size:12px;font-weight:600" id="themeText">Claro</span>
+                </button>
+                <button class="btn btn-secondary" onclick="logoutUser()" title="Cerrar sesión" style="padding:0 12px"><i
+                        data-lucide="log-out" width="16"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <!-- HEADER MOBILE -->
+        <header class="app-header">
+            <div class="flex items-center gap-3">
+                <button class="btn btn-icon btn-ghost" id="menuBtn" style="display:none"><i
+                        data-lucide="menu"></i></button>
+                <div class="badge badge-gray" style="font-family:var(--font-mono)"><i data-lucide="home" width="12"></i>
+                    <span id="headerHogarName">Casa García</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button class="btn btn-primary btn-sm" onclick="openUploadModal()"><i data-lucide="upload"
+                        width="14"></i> Subir factura</button>
+            </div>
+        </header>
+
+        <div class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-16);">
+
+            <!-- PAGE: BANDEJA -->
+            <div id="page-bandeja" class="page active animate-fade">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Tus facturas</h1>
+                        <p class="page-sub">Tienes 2 alertas activas que requieren tu atención.</p>
+                    </div>
+                    <div class="tabs">
+                        <button class="tab-btn active">Todas</button>
+                        <button class="tab-btn">Energía</button>
+                        <button class="tab-btn">Telecos</button>
+                    </div>
+                </div>
+
+                <!-- STATS -->
+                <div class="grid-3 mb-8">
+                    <div class="stat-card">
+                        <div class="stat-label">Gasto este mes</div>
+                        <div class="stat-value" id="statGastoMes">€188<span
+                                style="font-size:1rem;color:var(--text-muted)">,72</span>
+                        </div>
+                        <div class="stat-delta down"><i data-lucide="trending-down" width="14"></i> -12% vs mes anterior
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Ahorro potencial anual</div>
+                        <div class="stat-value text-accent" id="statAhorroPotencial">€410</div>
+                        <div class="stat-delta"><i data-lucide="check-circle" width="14"></i> 3 recomendaciones activas
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Facturas en revisión</div>
+                        <div class="stat-value">0</div>
+                        <div class="stat-delta" style="color:var(--text-muted)">Todo al día</div>
+                    </div>
+                </div>
+
+                <!-- UPLOAD AREA -->
+                <div class="upload-area mb-8" id="tour-step-1" onclick="openUploadModal()">
+                    <div
+                        style="width:56px;height:56px;background:var(--bg-surface);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-4);box-shadow:var(--shadow-sm);color:var(--color-primary)">
+                        <i data-lucide="plus" width="24"></i>
+                    </div>
+                    <h3 class="font-bold text-lg">Añadir nueva factura</h3>
+                    <p class="text-secondary text-sm mt-2">Sube un PDF, escanea un QR o haz una foto a un ticket.</p>
+                    <div class="text-xs text-muted mt-4">También puedes reenviar tus emails a: <code
+                            style="background:var(--bg-surface);padding:2px 6px;border-radius:4px;color:var(--text-primary)">casa-garcia@docs.ahorra360.es</code>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mb-4 mt-8">
+                    <h2 class="font-bold text-lg">Recientes</h2>
+                    <a href="#" class="text-sm font-semibold" style="color:var(--color-primary)">Ver historial
+                        completo</a>
+                </div>
+
+                <div id="invoicesList" class="doc-list">
+                    <!-- Renderizado desde app.js -->
+                </div>
+            </div>
+
+            <!-- PAGE: DETALLE FACTURA LUZ (123) -->
+            <div id="page-factura-123" class="page animate-slide">
+                <div class="mb-4">
+                    <a href="#bandeja" class="btn btn-ghost btn-sm" style="padding-left:0"><i data-lucide="arrow-left"
+                            width="16"></i> Volver a la bandeja</a>
+                </div>
+
+                <div class="grid-3" style="align-items:start">
+                    <!-- MAIN COL -->
+                    <div style="grid-column: span 2" class="flex-col gap-6">
+                        <div class="receipt-container">
+                            <div class="receipt-header">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="badge badge-luz">⚡ Electricidad</div>
+                                        <div class="badge badge-gray"><i data-lucide="check" width="10"></i> Analizado
+                                            hoy</div>
+                                    </div>
+                                    <h1 class="page-title">Factura Endesa</h1>
+                                    <p class="text-sm text-secondary mt-1">Periodo de facturación: <strong>1 Diciembre –
+                                            31 Diciembre 2025</strong></p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs font-semibold text-muted uppercase tracking-wide">Total Factura
+                                    </div>
+                                    <div class="font-heading font-extrabold"
+                                        style="font-size:2.5rem;line-height:1;margin-top:4px">€66,23</div>
+                                    <a href="#" class="text-xs text-primary-color font-semibold mt-2 inline-block"><i
+                                            data-lucide="download" width="12"
+                                            style="display:inline;vertical-align:-2px"></i> Descargar PDF original</a>
+                                </div>
+                            </div>
+
+                            <div class="receipt-body">
+                                <h3 class="font-bold text-lg mb-4">¿Qué te están cobrando? <span
+                                        class="badge badge-gray"
+                                        style="font-family:var(--font-mono);font-size:10px;font-weight:400;vertical-align:middle;margin-left:8px">🤖
+                                        IA</span></h3>
+
+                                <!-- Seccion 1: Potencia -->
+                                <div class="receipt-section">
+                                    <div class="receipt-section-title"><i data-lucide="activity" width="16"></i>
+                                        Potencia Contratada (Fijo)</div>
+                                    <div class="text-sm text-secondary mb-3">Es lo que pagas por tener disponibilidad de
+                                        luz aunque no consumas.</div>
+
+                                    <div class="receipt-row">
+                                        <div>
+                                            Punta y Llana (4,6 kW)
+                                            <div class="tooltip-wrap"><button class="tooltip-btn">?</button>
+                                                <div class="tooltip-box">Potencia máxima simultánea que puedes usar en
+                                                    casa antes de que salten los plomos.</div>
+                                            </div>
+                                        </div>
+                                        <div class="receipt-val">€ 18,32</div>
+                                    </div>
+
+                                    <!-- Recommendation Inline -->
+                                    <div class="explanation-box"
+                                        style="margin-top:12px;background:var(--color-warning-50);border:1px solid var(--color-warning-100)">
+                                        <i data-lucide="lightbulb" class="text-warning mt-1" width="18"
+                                            style="flex-shrink:0"></i>
+                                        <div class="text-sm">
+                                            <strong class="text-warning">Recomendación:</strong> Tu pico máximo de
+                                            consumo en el último año fue de 3,1 kW. Si bajas la potencia contratada a
+                                            3,45 kW <strong>podrías ahorrar ~€45 al año</strong> sin notar la
+                                            diferencia.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Seccion 2: Consumo -->
+                                <div class="receipt-section">
+                                    <div class="receipt-section-title"><i data-lucide="zap" width="16"></i> Energía
+                                        Consumida (Variable)</div>
+                                    <div class="text-sm text-secondary mb-3">Es lo que pagas por la luz que realmente
+                                        has gastado este mes. Tienes la <strong>Tarifa 2.0TD Regulada</strong>.</div>
+
+                                    <div class="receipt-row">
+                                        <div>Hora Punta (145 kWh) <span class="text-xs text-muted ml-2">Días laborables
+                                                10h-14h y 18h-22h</span></div>
+                                        <div class="receipt-val">€ 24,65</div>
+                                    </div>
+                                    <div class="receipt-row">
+                                        <div>Hora Llana (89 kWh)</div>
+                                        <div class="receipt-val">€ 13,52</div>
+                                    </div>
+
+                                    <div class="explanation-box">
+                                        <i data-lucide="info" class="text-primary-color mt-1" width="18"
+                                            style="flex-shrink:0"></i>
+                                        <div class="text-sm">
+                                            Estás concentrando el 62% de tu gasto en la **hora más cara** (Punta). Poner
+                                            la lavadora en fin de semana (hora Valle, que en esta factura indica 0 kWh)
+                                            podría bajar esto drásticamente.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Seccion 3: Impuestos y otros -->
+                                <div class="receipt-section mb-0">
+                                    <div class="receipt-section-title"><i data-lucide="landmark" width="16"></i>
+                                        Impuestos y Alquiler</div>
+
+                                    <div class="receipt-row">
+                                        <div>Impuesto Eléctrico (5,11%)</div>
+                                        <div class="receipt-val">€ 2,91</div>
+                                    </div>
+                                    <div class="receipt-row">
+                                        <div>Alquiler equipo medida</div>
+                                        <div class="receipt-val">€ 0,81</div>
+                                    </div>
+                                    <div class="receipt-row"
+                                        style="border-bottom:2px solid var(--text-primary);padding-bottom:12px">
+                                        <div>IVA (10%) <span class="text-xs text-muted ml-2">Gobierno mantiene IVA
+                                                reducido</span></div>
+                                        <div class="receipt-val">€ 6,02</div>
+                                    </div>
+                                    <div class="receipt-row pt-3" style="font-size:1.1rem">
+                                        <div class="font-bold">Total a pagar</div>
+                                        <div class="font-bold">€ 66,23</div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SIDEBAR INFO -->
+                    <div class="flex-col gap-4">
+                        <!-- Comparativa Widget -->
+                        <div class="card">
+                            <h3 class="font-bold text-sm uppercase tracking-wide text-primary-color mb-3">Tu tarifa vs
+                                Mercado</h3>
+                            <p class="text-sm text-secondary mb-4">Hemos simulado este mismo consumo en otras 15
+                                comercializadoras.</p>
+
+                            <div class="flex items-center gap-3 mb-4">
+                                <div style="font-size:2.5rem">😒</div>
+                                <div>
+                                    <div class="font-bold text-lg">Pagas más que la media</div>
+                                    <div class="text-xs text-muted">Estás en el percentil 75% más caro</div>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-primary w-full" style="justify-content:center"
+                                onclick="location.hash='#comparador'">Ir al comparador</button>
+                            <p class="text-xs text-muted mt-3 text-center"><i data-lucide="shield-check" width="12"
+                                    style="display:inline"></i> Datos neutrales oficiales (CNMC)</p>
+                        </div>
+
+                        <!-- Metadatos de extraccion -->
+                        <div class="card" style="background:var(--bg-surface-2)">
+                            <h3 class="font-bold text-sm mb-3">Datos Técnicos</h3>
+                            <div class="flex-col gap-2 text-xs">
+                                <div class="flex justify-between border-b pb-1 border-strong">
+                                    <span class="text-secondary">CUPS</span>
+                                    <span class="font-mono font-semibold">ES002100...BQ</span>
+                                </div>
+                                <div class="flex justify-between border-b pb-1 border-strong">
+                                    <span class="text-secondary">Extracción ML</span>
+                                    <span class="text-accent font-semibold flex items-center gap-1">98% confianza <div
+                                            class="badge badge-green" style="padding:0 4px;font-size:9px">OK</div>
+                                    </span>
+                                </div>
+                                <div class="flex justify-between pt-1">
+                                    <span class="text-secondary">Privacidad</span>
+                                    <span class="text-muted"><i data-lucide="lock" width="10"></i> Datos personales
+                                        omitidos</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAB Chat -->
+                <div class="chat-fab" title="Pregunta sobre esta factura" onclick="openChatModal()">
+                    <i data-lucide="message-squareText" width="24" height="24"></i>
+                </div>
+            </div>
+
+            <!-- PAGE: DETALLE FACTURA TELECOS (456) -->
+            <div id="page-factura-456" class="page animate-slide">
+                <div class="mb-4">
+                    <a href="#bandeja" class="btn btn-ghost btn-sm" style="padding-left:0"><i data-lucide="arrow-left" width="16"></i> Volver a la bandeja</a>
+                </div>
+
+                <div class="grid-3" style="align-items:start">
+                    <div style="grid-column: span 2" class="flex-col gap-6">
+                        <div class="receipt-container">
+                            <div class="receipt-header">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="badge" style="background:var(--color-primary-100);color:var(--color-primary-dark)">📱 Telecomunicaciones</div>
+                                        <div class="badge badge-amber"><i data-lucide="alert-triangle" width="10"></i> Promo caduca pronto</div>
+                                    </div>
+                                    <h1 class="page-title">Factura Orange</h1>
+                                    <p class="text-sm text-secondary mt-1">Periodo: <strong>1 Ene – 31 Ene 2026</strong></p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs font-semibold text-muted uppercase tracking-wide">Total Factura</div>
+                                    <div class="font-heading font-extrabold" style="font-size:2.5rem;line-height:1;margin-top:4px">€49,99</div>
+                                    <a href="#" class="text-xs text-primary-color font-semibold mt-2 inline-block"><i data-lucide="download" width="12" style="display:inline;vertical-align:-2px"></i> Descargar PDF</a>
+                                </div>
+                            </div>
+
+                            <div class="receipt-body">
+                                <!-- Seccion 1: Fibra -->
+                                <div class="receipt-section">
+                                    <div class="receipt-section-title"><i data-lucide="wifi" width="16"></i> Fibra Óptica 1Gbps</div>
+                                    <div class="receipt-row">
+                                        <div>Cuota Base (con Dto. Bienvenida 50%)</div>
+                                        <div class="receipt-val">€ 22,00</div>
+                                    </div>
+                                    <div class="explanation-box" style="margin-top:12px;background:var(--color-warning-50);border:1px solid var(--color-warning-100)">
+                                        <i data-lucide="alert-circle" class="text-warning mt-1" width="18" style="flex-shrink:0"></i>
+                                        <div class="text-sm">
+                                            <strong class="text-warning">¡Cuidado!</strong> El descuento por portabilidad "Bienvenida" del 50% <strong>acaba en 30 días</strong>. Esta cuota subirá automáticamente a €44,00 a partir del próximo mes.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Seccion 2: Lineas -->
+                                <div class="receipt-section">
+                                    <div class="receipt-section-title"><i data-lucide="smartphone" width="16"></i> Líneas Móviles (x2)</div>
+                                    <div class="receipt-row">
+                                        <div>Línea 1 (Ilimitada • 50GB Compartidos)</div>
+                                        <div class="receipt-val">€ 14,00</div>
+                                    </div>
+                                    <div class="receipt-row">
+                                        <div>Línea 2 Adicional (Ilimitada)</div>
+                                        <div class="receipt-val">€ 9,00</div>
+                                    </div>
+                                    <div class="receipt-row">
+                                        <div>Exceso Datos UE (Roaming)</div>
+                                        <div class="receipt-val">€ 1,50</div>
+                                    </div>
+                                </div>
+
+                                <!-- Seccion 3: Impuestos y otros -->
+                                <div class="receipt-section mb-0">
+                                    <div class="receipt-row" style="border-bottom:2px solid var(--text-primary);padding-bottom:12px">
+                                        <div>IVA (21%)</div>
+                                        <div class="receipt-val">€ 3,49</div>
+                                    </div>
+                                    <div class="receipt-row pt-3" style="font-size:1.1rem">
+                                        <div class="font-bold">Total a pagar</div>
+                                        <div class="font-bold">€ 49,99</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SIDEBAR INFO -->
+                    <div class="flex-col gap-4">
+                        <div class="card">
+                            <h3 class="font-bold text-sm uppercase tracking-wide text-primary-color mb-3">Tu tarifa vs Mercado</h3>
+                            <div class="alert alert-amber mb-4">
+                                <i data-lucide="clock" class="text-warning" width="16"></i>
+                                <div class="text-xs">Permanencia vencida hace 2 meses. Tienes libertad total.</div>
+                            </div>
+                            <button class="btn btn-primary w-full" style="justify-content:center" onclick="location.hash='#comparador'"><i data-lucide="radio" width="16"></i> Buscar 300Mb (Basta para ti)</button>
+                            <p class="text-xs text-muted mt-3 text-center">Calculamos que solo gastas 8GB en el móvil</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAGE: DETALLE FACTURA GAS (789) -->
+            <div id="page-factura-789" class="page animate-slide">
+                <div class="mb-4">
+                    <a href="#bandeja" class="btn btn-ghost btn-sm" style="padding-left:0"><i data-lucide="arrow-left" width="16"></i> Volver a la bandeja</a>
+                </div>
+                <!-- Mini layout for Gas to show it works -->
+                <div class="card max-w-2xl mx-auto text-center" style="padding:40px">
+                    <div class="badge badge-red mx-auto mb-4" style="background:#FEE2E2;color:#DC2626"><i data-lucide="flame" width="16"></i> Gas Natural</div>
+                    <h2 class="text-3xl font-extrabold mb-2">Factura Naturgy</h2>
+                    <h3 class="text-xl font-bold text-primary-color mb-6">€ 112,45</h3>
+                    <p class="text-secondary mb-6">Tu consumo de calefacción este invierno se ha disparado un 15% respecto al año pasado. Te recomendamos purgar los radiadores.</p>
+                    <button class="btn btn-secondary w-full" onclick="location.hash='#bandeja'">Volver atrás</button>
+                </div>
+            </div>
+
+            <!-- PAGE: DETALLE SEGURO (101) -->
+            <div id="page-factura-101" class="page animate-slide">
+                <div class="mb-4">
+                    <a href="#bandeja" class="btn btn-ghost btn-sm" style="padding-left:0"><i data-lucide="arrow-left" width="16"></i> Volver a la bandeja</a>
+                </div>
+                <div class="card max-w-2xl mx-auto text-center" style="padding:40px">
+                    <div class="badge mx-auto mb-4" style="background:var(--color-primary-100);color:var(--color-primary)"><i data-lucide="shield" width="16"></i> Seguro de Hogar</div>
+                    <h2 class="text-3xl font-extrabold mb-2">Póliza Mapfre Anual</h2>
+                    <h3 class="text-xl font-bold text-primary-color mb-6">€ 285,00</h3>
+                    <div class="alert alert-blue mb-4 text-left">
+                        <i data-lucide="alert-circle" class="text-info" width="16"></i>
+                        <div class="text-xs">Detectamos que esta póliza cubre Responsabilidad Civil de Mascotas. Verifica si las nuevas leyes exigen un seguro independiente para tu perro.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAGE: DETALLE SEGURO COCHE (102) -->
+            <div id="page-factura-102" class="page animate-slide">
+                <div class="mb-4">
+                    <a href="#bandeja" class="btn btn-ghost btn-sm" style="padding-left:0"><i data-lucide="arrow-left" width="16"></i> Volver a la bandeja</a>
+                </div>
+                <div class="card max-w-2xl mx-auto text-center" style="padding:40px">
+                    <h2 class="text-3xl font-extrabold mb-2">Mutua Madrileña Coche</h2>
+                    <h3 class="text-xl font-bold text-primary-color mb-6">€ 420,50</h3>
+                    <p class="text-secondary">Todo Riesgo con Franquicia de 150€. Tienes 3 partes cerrados este año, lo que explica la subida del 8% de la prima.</p>
+                </div>
+            </div>
+
+            <!-- PAGE: DETALLE GASOLINA (103) -->
+            <div id="page-factura-103" class="page animate-slide">
+                <div class="mb-4">
+                    <a href="#bandeja" class="btn btn-ghost btn-sm" style="padding-left:0"><i data-lucide="arrow-left" width="16"></i> Volver a la bandeja</a>
+                </div>
+                <div class="card max-w-2xl mx-auto text-center" style="padding:40px">
+                    <div class="badge mx-auto mb-4" style="background:#F3F4F6;color:#4B5563">⛽ Combustible</div>
+                    <h2 class="text-3xl font-extrabold mb-2">Ticket Repsol</h2>
+                    <h3 class="text-xl font-bold text-primary-color mb-6">€ 55,20</h3>
+                    <p class="text-secondary mb-4">Repostaste Diésel A+ a 1.623€/l en Autovía A-6.</p>
+                    <div class="explanation-box mx-auto" style="width:fit-content;text-align:left">
+                        <strong class="text-warning">Mejora detectada:</strong> En el polígono aledaño (2.3km de desvío), Plenoil tiene Diésel a 1.442€/l. Habrías ahorrado casi 6€.
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAGE: COMPARADOR -->
+            <div id="page-comparador" class="page animate-fade">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Comparador Neutral</h1>
+                        <p class="page-sub">Compara tus tarifas actuales con las mejores del mercado oficial.</p>
+                    </div>
+                </div>
+
+                <!-- Tabs Comparador -->
+                <div class="tabs mb-8" style="max-width:400px" id="compTabs">
+                    <button class="tab-btn active" data-comp="luz">⚡ Luz</button>
+                    <button class="tab-btn" data-comp="telecos">📱 Telecos</button>
+                    <button class="tab-btn" data-comp="gas">⛽ Gas</button>
+                </div>
+
+                <!-- CONTENIDO COMPARADOR: LUZ -->
+                <div class="grid-3 comp-view active" id="comp-luz" style="align-items:start">
+                    <!-- FORMULARIO / INPUTS -->
+                    <div class="card" style="background:var(--bg-surface-2)">
+                        <h3 class="font-bold text-lg mb-4">Tus Datos Base</h3>
+                        <p class="text-sm text-secondary mb-4">Cogidos de tu última factura registrada.</p>
+
+                        <div class="input-group mb-4">
+                            <label class="input-label">Potencia Punta (kW)</label>
+                            <input type="number" class="input" value="4.6" step="0.1">
+                        </div>
+                        <div class="input-group mb-4">
+                            <label class="input-label">Consumo mensual est. (kWh)</label>
+                            <input type="number" class="input" value="234">
+                        </div>
+                        <div class="input-group mb-6">
+                            <label class="input-label">Código Postal</label>
+                            <input type="text" class="input" value="28001">
+                        </div>
+
+                        <button class="btn btn-primary w-full" style="justify-content:center"
+                            onclick="alert('Buscando en sistema oficial CNMC...')"><i data-lucide="search"
+                                width="16"></i> Buscar mejores ofertas</button>
+                    </div>
+
+                    <!-- RESULTADOS -->
+                    <div style="grid-column: span 2" class="flex-col gap-4">
+
+                        <div class="alert alert-green mb-2">
+                            <i data-lucide="check-circle" class="alert-icon text-accent"></i>
+                            <div>
+                                <div class="alert-title">3 alternativas mejores encontradas</div>
+                                <div class="alert-body">Estás pagando ~€795 al año. Puedes bajarlo a ~€615 sin cambiar
+                                    hábitos.</div>
+                            </div>
+                        </div>
+
+                        <!-- Oferta 1 -->
+                        <div class="card card-interactive"
+                            style="border:2px solid var(--color-accent);position:relative">
+                            <div
+                                style="position:absolute;top:-12px;right:24px;background:var(--color-accent);color:#fff;font-size:10px;font-weight:bold;padding:4px 12px;border-radius:12px;text-transform:uppercase;letter-spacing:1px">
+                                La más barata</div>
+
+                            <div class="flex justify-between items-center flex-wrap gap-4">
+                                <div>
+                                    <h3 class="font-bold text-xl mb-1">Octopus Energy <span
+                                            class="badge badge-gray font-normal text-xs ml-2">Tarifa Relax</span></h3>
+                                    <div class="text-sm text-secondary">Ahorrarás unos <strong>€180 al año</strong> vs
+                                        tu tarifa actual. Energía 100% verde. Sin permanencia.</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-heading font-extrabold text-2xl">~€51,20 <span
+                                            class="text-sm font-body font-normal text-muted">/mes</span></div>
+                                </div>
+                            </div>
+
+                            <div class="divider"></div>
+
+                            <div class="flex justify-between items-center flex-wrap gap-4">
+                                <div class="flex gap-4 text-xs">
+                                    <div><span class="text-muted">Potencia:</span> €0,085/kW/día</div>
+                                    <div><span class="text-muted">Energía:</span> €0,119/kWh 24h</div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm"
+                                    onclick="alert('Abriendo guiado de cambio...')">Ver cómo cambiar</button>
+                            </div>
+                        </div>
+
+                        <!-- Oferta 2 -->
+                        <div class="card card-interactive">
+                            <div class="flex justify-between items-center flex-wrap gap-4">
+                                <div>
+                                    <h3 class="font-bold text-xl mb-1">Iberdrola <span
+                                            class="badge badge-gray font-normal text-xs ml-2">Plan Online</span></h3>
+                                    <div class="text-sm text-secondary">Ahorrarás unos <strong>€125 al año</strong>.
+                                        Precio fijo 24h.</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-heading font-extrabold text-2xl">~€55,80 <span
+                                            class="text-sm font-body font-normal text-muted">/mes</span></div>
+                                </div>
+                            </div>
+                            <div class="divider"></div>
+                            <div class="flex justify-between items-center">
+                                <div class="flex gap-4 text-xs">
+                                    <div><span class="text-muted">Energía:</span> €0,132/kWh 24h</div>
+                                </div>
+                                <button class="btn btn-ghost btn-sm">Ver cómo cambiar</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- CONTENIDO COMPARADOR: TELECOS -->
+                <div class="grid-3 comp-view" id="comp-telecos" style="align-items:start; display:none;">
+                    <div class="card" style="background:var(--bg-surface-2)">
+                        <h3 class="font-bold text-lg mb-4">Tus Datos Base</h3>
+                        <p class="text-sm text-secondary mb-4">Servicios actuales extraídos de factura.</p>
+
+                        <div class="input-group mb-4">
+                            <label class="input-label">Fibra en Casa</label>
+                            <select class="input"><option>1 Gbps</option><option>600 Mbps</option><option>300 Mbps</option></select>
+                        </div>
+                        <div class="input-group mb-4">
+                            <label class="input-label">Líneas Móviles</label>
+                            <input type="number" class="input" value="2">
+                        </div>
+                        <div class="input-group mb-6">
+                            <label class="input-label">Datos por Línea</label>
+                            <select class="input"><option>Ilimitados</option><option>50 GB</option><option>10 GB</option></select>
+                        </div>
+
+                        <button class="btn btn-primary w-full" style="justify-content:center" onclick="alert('Analizando cobertura CNMC...')"><i data-lucide="search" width="16"></i> Buscar mejores ofertas</button>
+                    </div>
+
+                    <div style="grid-column: span 2" class="flex-col gap-4">
+                        <div class="alert alert-green mb-2">
+                            <i data-lucide="check-circle" class="alert-icon text-accent"></i>
+                            <div>
+                                <div class="alert-title">Alternativa Premium Encontrada</div>
+                                <div class="alert-body">No necesitas tanta fibra ni datos ilimitados. Reduciendo a lo que realmente usas ahorrarás €360/año.</div>
+                            </div>
+                        </div>
+
+                        <div class="card card-interactive" style="border:2px solid var(--color-accent);position:relative">
+                            <div style="position:absolute;top:-12px;right:24px;background:var(--color-accent);color:#fff;font-size:10px;font-weight:bold;padding:4px 12px;border-radius:12px;text-transform:uppercase;letter-spacing:1px">Recomendada según tu uso</div>
+                            <div class="flex justify-between items-center flex-wrap gap-4">
+                                <div>
+                                    <h3 class="font-bold text-xl mb-1">O2 <span class="badge badge-gray font-normal text-xs ml-2">Fibra 300Mb + 2 Líneas 40GB</span></h3>
+                                    <div class="text-sm text-secondary">Ahorrarás <strong>€30 al mes</strong>. Cobertura Telefónica. Sin permanencia. Precio definitivo.</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-heading font-extrabold text-2xl">€35,00 <span class="text-sm font-body font-normal text-muted">/mes</span></div>
+                                </div>
+                            </div>
+                            <div class="divider"></div>
+                            <div class="flex justify-between items-center flex-wrap gap-4">
+                                <div class="flex gap-4 text-xs">
+                                    <div><span class="text-muted">Desglose:</span> Fibra 300Mb (30€) + Línea adic. 40GB (5€)</div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" onclick="alert('Iniciando portabilidad a O2. No perderás tus números.')">Cambiar a O2</button>
+                            </div>
+                        </div>
+
+                        <div class="card card-interactive">
+                            <div class="flex justify-between items-center flex-wrap gap-4">
+                                <div>
+                                    <h3 class="font-bold text-xl mb-1">Pepephone <span class="badge badge-gray font-normal text-xs ml-2">Fibra 500Mb + 2 Líneas 39GB</span></h3>
+                                    <div class="text-sm text-secondary">Ahorrarás <strong>€11 al mes</strong>. Cobertura Yoigo/Orange/Movistar.</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-heading font-extrabold text-2xl">€38,90 <span class="text-sm font-body font-normal text-muted">/mes</span></div>
+                                </div>
+                            </div>
+                            <div class="divider"></div>
+                            <div class="flex justify-between items-center">
+                                <div class="flex gap-4 text-xs">
+                                    <div><span class="text-muted">Beneficio extra:</span> Baja el precio cada año que sigues con ellos.</div>
+                                </div>
+                                <button class="btn btn-ghost btn-sm">Cambiar a Pepephone</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTENIDO COMPARADOR: GAS -->
+                <div class="grid-3 comp-view" id="comp-gas" style="align-items:start; display:none;">
+                    <div class="card" style="background:var(--bg-surface-2)">
+                        <h3 class="font-bold text-lg mb-4">Tus Datos Base</h3>
+                        <div class="input-group mb-4">
+                            <label class="input-label">Tarifa de Acceso</label>
+                            <select class="input"><option>RL.2 (Agua y Calefacción)</option><option>RL.1 (Solo Agua)</option><option>RL.3</option></select>
+                        </div>
+                        <div class="input-group mb-6">
+                            <label class="input-label">Consumo Anual Estimado</label>
+                            <input type="number" class="input" value="6500">
+                        </div>
+
+                        <button class="btn btn-primary w-full" style="justify-content:center" onclick="alert('Conectando con CNMC...')"><i data-lucide="search" width="16"></i> Buscar tarifas RL.2</button>
+                    </div>
+
+                    <div style="grid-column: span 2" class="flex-col gap-4">
+                        <div class="alert alert-blue mb-2">
+                            <i data-lucide="info" class="alert-icon text-info"></i>
+                            <div>
+                                <div class="alert-title">El Mercado Regulado (TUR) sigue siendo imbatible</div>
+                                <div class="alert-body">Ninguna tarifa del mercado libre (como tu actual Naturgy) puede competir con la tarifa intervenida por el Gobierno (TUR).</div>
+                            </div>
+                        </div>
+
+                        <div class="card card-interactive" style="border:2px solid var(--color-info);position:relative">
+                            <div style="position:absolute;top:-12px;right:24px;background:var(--color-info);color:#fff;font-size:10px;font-weight:bold;padding:4px 12px;border-radius:12px;text-transform:uppercase;letter-spacing:1px">Mercado Regulado</div>
+                            <div class="flex justify-between items-center flex-wrap gap-4">
+                                <div>
+                                    <h3 class="font-bold text-xl mb-1">Cualquier Comercializadora de Último Recurso (TUR)</h3>
+                                    <div class="text-sm text-secondary">Ahorrarás aprox <strong>22% en tu factura de invierno</strong>. Es un trámite legal que tardan 5 días en aplicar.</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-heading font-extrabold text-2xl">TUR 2</div>
+                                </div>
+                            </div>
+                            <div class="divider"></div>
+                            <div class="flex justify-between items-center flex-wrap gap-4">
+                                <div class="flex gap-4 text-xs">
+                                    <div><span class="text-muted">Término Fijo:</span> ~€9,50/mes</div>
+                                    <div><span class="text-muted">Energía:</span> ~€0,042/kWh</div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" onclick="alert('Descargando guía paso a paso para pasarse a la TUR...')">Ver cómo solicitar la TUR</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAGE: ALERTAS -->
+            <div id="page-alertas" class="page animate-fade">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Centro de Alertas</h1>
+                        <p class="page-sub">El sistema vigila por ti para que no se te pase ninguna fecha clave.</p>
+                    </div>
+                </div>
+
+                <div class="flex-col gap-4 max-w-3xl" style="max-width:800px">
+
+                    <div class="card" style="border-left:4px solid var(--color-warning-light)">
+                        <div class="flex justify-between items-start gap-4">
+                            <div class="flex items-start gap-4">
+                                <div class="doc-icon"
+                                    style="background:var(--color-warning-50);color:var(--color-warning)"><i
+                                        data-lucide="clock" width="20"></i></div>
+                                <div>
+                                    <h3 class="font-bold text-lg">Fin de promoción Orange Fibra</h3>
+                                    <p class="text-sm text-secondary mt-1">Tu descuento del 50% "Promoción Bienvenida"
+                                        termina el <strong>15 de Abril (en 30 días)</strong>.</p>
+                                    <div class="explanation-box mt-3 text-sm">
+                                        <i data-lucide="trending-up" class="text-warning mt-1" width="16"></i>
+                                        Tu factura pasará automáticamente de <strong>€49,99 a €79,99</strong> mensuales
+                                        si no actúas.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-4" style="margin-left:60px">
+                            <button class="btn btn-primary btn-sm" onclick="location.hash='#comparador'">Comparar
+                                alternativas ahora</button>
+                            <button class="btn btn-secondary btn-sm">Posponer 7 días</button>
+                        </div>
+                    </div>
+
+                    <div class="card" style="border-left:4px solid var(--color-info)">
+                        <div class="flex justify-between items-start gap-4">
+                            <div class="flex items-start gap-4">
+                                <div class="doc-icon" style="background:var(--color-info-50);color:var(--color-info)"><i
+                                        data-lucide="shield" width="20"></i></div>
+                                <div>
+                                    <h3 class="font-bold text-lg">Seguro de Hogar Mapfre: Renovación próxima</h3>
+                                    <p class="text-sm text-secondary mt-1">El preaviso legal de 30 días para cancelar
+                                        sin penalización empieza en 2 semanas.</p>
+                                </div>
+                            </div>
+                            <span class="text-xs text-muted">Ayer</span>
+                        </div>
+                    </div>
+
+                    <!-- Toggle switches block -->
+                    <h3 class="font-bold text-lg mt-8 mb-4">Ajustes de notificaciones</h3>
+                    <div class="card flex-col gap-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-semibold text-sm">Fin de promociones telecomunicaciones</div>
+                                <div class="text-xs text-muted">Aviso 45 y 15 días antes</div>
+                            </div>
+                            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="divider" style="margin:8px 0"></div>
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-semibold text-sm">Renovación seguros de hogar y coche</div>
+                                <div class="text-xs text-muted">Aviso 60 y 30 días antes</div>
+                            </div>
+                            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="divider" style="margin:8px 0"></div>
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-semibold text-sm">Precios de combustible en tu ruta</div>
+                                <div class="text-xs text-muted">Aviso si hay gasolineras -10% bajo la media en un radio
+                                    de 5km</div>
+                            </div>
+                            <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MODAL: UPLOAD FACTURA -->
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Subir factura</h2>
+                <button class="modal-close" onclick="closeModals()"><i data-lucide="x"></i></button>
+            </div>
+
+            <div class="tabs mb-6">
+                <button class="tab-btn active">PDF / Foto</button>
+                <button class="tab-btn" onclick="document.getElementById('fileInput').click()">Escanear QR</button>
+            </div>
+
+            <div class="upload-area mb-4" onclick="document.getElementById('fileInput').click()">
+                <i data-lucide="upload-cloud" width="32" class="text-primary-color mb-3 mx-auto"></i>
+                <div class="font-semibold mb-1">Arrastra tu PDF o imagen aquí</div>
+                <div class="text-xs text-muted">Formatos: .pdf, .jpg, .png (máx 20MB)</div>
+                <button class="btn btn-secondary mt-4">Examinar archivos</button>
+                <input type="file" id="fileInput" style="display:none" onchange="handleFileUpload('fileInput')"
+                    accept=".pdf,image/*">
+            </div>
+
+            <div class="text-center text-xs text-muted mt-4">
+                <i data-lucide="lock" width="12" style="display:inline;vertical-align:-2px"></i> Conexión cifrada. Nunca
+                venderemos tus datos.
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CHAT DE EXPLICACIÓN (LLM) -->
+    <div class="modal-overlay" id="chatModal">
+        <div class="modal" style="display:flex;flex-direction:column;height:80vh;padding:0;overflow:hidden">
+            <div class="modal-header"
+                style="padding:var(--space-4) var(--space-6);margin:0;border-bottom:1px solid var(--border);background:var(--bg-surface-2)">
+                <div>
+                    <h2 class="modal-title" style="font-size:1.1rem;display:flex;align-items:center;gap:8px">
+                        <i data-lucide="sparkles" class="text-primary-color" width="18"></i> Asistente Ahorra 360
+                    </h2>
+                    <div class="text-xs text-muted mt-1">Preguntando sobre: Factura Endesa · Dic 2025</div>
+                </div>
+                <button class="modal-close" onclick="closeModals()"><i data-lucide="x"></i></button>
+            </div>
+
+            <div
+                style="flex:1;overflow-y:auto;padding:var(--space-6);display:flex;flex-direction:column;gap:var(--space-4)">
+                <!-- Mensaje IA -->
+                <div style="display:flex;gap:12px;max-width:85%">
+                    <div
+                        style="width:32px;height:32px;border-radius:8px;background:var(--color-primary-50);color:var(--color-primary);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <i data-lucide="bot" width="18"></i>
+                    </div>
+                    <div
+                        style="background:var(--bg-surface-2);padding:12px 16px;border-radius:12px;border-top-left-radius:0;font-size:14px;line-height:1.5;color:var(--text-primary)">
+                        Hola Laura, he analizado tu factura de Endesa. He detectado que podrías ahorrar optimizando tu
+                        potencia contratada. ¿Qué dudas tienes sobre tus cobros este mes?
+                    </div>
+                </div>
+                <!-- Mensaje Usuario -->
+                <div style="display:flex;gap:12px;max-width:85%;align-self:flex-end;flex-direction:row-reverse">
+                    <div
+                        style="width:32px;height:32px;border-radius:8px;background:var(--color-primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:bold">
+                        LG</div>
+                    <div
+                        style="background:var(--color-primary);color:#fff;padding:12px 16px;border-radius:12px;border-top-right-radius:0;font-size:14px;line-height:1.5">
+                        ¿Por qué pago alquiler de equipos si mi casa no es nueva?
+                    </div>
+                </div>
+                <!-- Mensaje IA -->
+                <div style="display:flex;gap:12px;max-width:85%">
+                    <div
+                        style="width:32px;height:32px;border-radius:8px;background:var(--color-primary-50);color:var(--color-primary);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <i data-lucide="bot" width="18"></i>
+                    </div>
+                    <div
+                        style="background:var(--bg-surface-2);padding:12px 16px;border-radius:12px;border-top-left-radius:0;font-size:14px;line-height:1.5;color:var(--text-primary)">
+                        El alquiler de equipos de medida (€0,81) se cobra porque el contador de la luz físicamente no es
+                        de tu propiedad, sino de la distribuidora de tu zona. Es un cobro completamente normal y legal
+                        en España regulado por la CNMC, a menos que compres el contador (lo cual no suele salir
+                        rentable).
+                        <div class="mt-2 text-xs text-muted flex items-center gap-1"><i data-lucide="database"
+                                width="10"></i> Fuente CNMC · Base normativa</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding:var(--space-4);border-top:1px solid var(--border);background:var(--bg-surface)">
+                <div style="display:flex;gap:8px">
+                    <input type="text" class="input" placeholder="Pregunta algo sobre tu factura..."
+                        style="border-radius:var(--radius-full)"
+                        onkeydown="if(event.key==='Enter'){this.value=''; alert('LLM Chat es de demostración en este prototipo.');}">
+                    <button class="btn btn-primary btn-icon"
+                        style="border-radius:var(--radius-full);width:42px;height:42px"
+                        onclick="document.querySelector('input[placeholder]').value=''; alert('LLM Chat es de demostración en este prototipo.');"><i
+                            data-lucide="send" width="18"></i></button>
+                </div>
+                <div class="text-center mt-2" style="font-size:10px;color:var(--text-muted)">La IA puede cometer
+                    errores. Ocultamos tus datos personales automáticamente.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PROGRESO ANALISIS (ML SIMULATION) -->
+    <div class="modal-overlay" id="uploadProgressOverlay">
+        <div class="modal text-center" style="max-width: 360px;">
+            <div class="upload-icon"
+                style="width: 64px; height: 64px; background: var(--color-primary-50); color: var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4);">
+                <i data-lucide="cpu" width="32" height="32" class="animate-pulse"></i>
+            </div>
+            <h3 class="font-bold text-lg mb-4">Analizando Factura...</h3>
+
+            <div class="flex-col gap-2 text-sm text-left mx-auto" style="width: fit-content;">
+                <div class="upload-step active"><i data-lucide="scan-text" width="16"></i> Extracción de texto OCR</div>
+                <div class="upload-step"><i data-lucide="sparkles" width="16"></i> Procesando RAG / LLM</div>
+                <div class="upload-step"><i data-lucide="arrow-left-right" width="16"></i> Buscando Mercado GNC</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+
+        // Theme Toggle
+        const themeBtn = document.getElementById('themeBtn');
+        const sun = document.getElementById('themeIconSun');
+        const moon = document.getElementById('themeIconMoon');
+        const themeText = document.getElementById('themeText');
+
+        function applyTheme(t) {
+            document.documentElement.setAttribute('data-theme', t);
+            localStorage.setItem('a360-theme', t);
+            if (t === 'dark') { sun.style.display = 'none'; moon.style.display = ''; themeText.innerText = 'Oscuro'; }
+            else { sun.style.display = ''; moon.style.display = 'none'; themeText.innerText = 'Claro'; }
+        }
+
+        applyTheme(localStorage.getItem('a360-theme') || 'light');
+        themeBtn.addEventListener('click', () => {
+            applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+        });
+
+        // Comparador Tabs Logic
+        document.querySelectorAll('#compTabs .tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Remove active from all tabs
+                document.querySelectorAll('#compTabs .tab-btn').forEach(b => b.classList.remove('active'));
+                
+                // Keep the clicked tab active
+                e.target.classList.add('active');
+                
+                // Hide all comp-views
+                document.querySelectorAll('.comp-view').forEach(v => {
+                    v.style.display = 'none';
+                    v.classList.remove('active');
+                });
+                
+                // Show requested view
+                const viewId = 'comp-' + e.target.getAttribute('data-comp');
+                const targetView = document.getElementById(viewId);
+                if (targetView) {
+                    targetView.style.display = 'grid'; // because it's a grid-3
+                    // small delay for animation
+                    setTimeout(() => targetView.classList.add('active'), 10);
+                }
+            });
+        });
+
+        // Simple Hash Router Setup
+        const pages = document.querySelectorAll('.page');
+        const navLinks = document.querySelectorAll('.sidebar-link');
+
+        function route() {
+            let hash = window.location.hash.replace('#', '') || 'bandeja';
+            let basePage = hash.split('/')[0];
+
+            // Manage pages
+            pages.forEach(p => p.classList.remove('active'));
+
+            // Default to matching basePage (bandeja, alertas, etc)
+            let targetPage = document.getElementById('page-' + basePage);
+            
+            // Special handling for dynamic invoice detail routes like #factura/123
+            if (basePage === 'factura') {
+                const invoiceId = hash.split('/')[1] || '123';
+                // Try to find specific id, fallback to main facture page if none
+                const specificPage = document.getElementById('page-factura-' + invoiceId);
+                if (specificPage) {
+                    targetPage = specificPage;
+                } else if (!targetPage) {
+                    // Fallback to the default 123 template if the id has no markup but just use the main
+                    targetPage = document.getElementById('page-factura');
+                }
+            }
+
+            if (targetPage) targetPage.classList.add('active');
+
+            // Manage Sidebar active state
+            navLinks.forEach(l => {
+                l.classList.remove('active');
+                if (l.dataset.target === basePage) l.classList.add('active');
+            });
+
+            // Mobile close sidebar on navigate
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('open');
+
+            window.scrollTo(0, 0);
+        }
+
+        window.addEventListener('hashchange', route);
+        route(); // Init
+
+        // Mobile Sidebar
+        document.getElementById('menuBtn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.add('open');
+            document.getElementById('sidebarOverlay').classList.add('open');
+        });
+        document.getElementById('sidebarOverlay').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('open');
+        });
+
+        // Modals
+        function openUploadModal() { document.getElementById('uploadModal').classList.add('open'); }
+        function openChatModal() { document.getElementById('chatModal').classList.add('open'); }
+        function closeModals() {
+            document.getElementById('uploadModal').classList.remove('open');
+            document.getElementById('chatModal').classList.remove('open');
+        }
+
+        // Check for tour URL param (from Onboarding)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('tour') === '1') {
+            setTimeout(() => {
+                openUploadModal();
+                history.replaceState(null, '', 'dashboard.html');
+            }, 500);
+        }
+    </script>
+</body>
+
+</html>

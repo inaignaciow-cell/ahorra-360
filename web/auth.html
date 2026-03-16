@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Accede a Ahorra 360 y controla todas tus facturas del hogar con IA." />
+    <meta name="theme-color" content="#4F46E5" />
+    <title>Acceso — Ahorra 360</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="stylesheet" href="styles/globals.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(() => console.log('[SW] Registered'))
+                .catch(err => console.warn('[SW] Registration failed', err));
+        }
+    </script>
+    <style>
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        body {
+            background: var(--bg-surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-4);
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 440px;
+        }
+
+        .auth-card {
+            background: var(--bg-surface);
+            padding: var(--space-8);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: var(--space-8);
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-4);
+            text-decoration: none;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: var(--font-extrabold);
+            font-size: var(--text-lg);
+            font-family: var(--font-heading);
+            box-shadow: var(--shadow-primary);
+        }
+
+        .logo-text {
+            font-family: var(--font-heading);
+            font-weight: var(--font-extrabold);
+            font-size: var(--text-xl);
+            color: var(--text-primary);
+        }
+
+        .auth-title {
+            font-size: var(--text-2xl);
+            font-weight: var(--font-bold);
+            margin-bottom: var(--space-2);
+        }
+
+        .auth-sub {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .view {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        .social-btn {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-strong);
+            color: var(--text-primary);
+            margin-bottom: var(--space-3);
+        }
+
+        .social-btn:hover {
+            background: var(--bg-surface-2);
+            border-color: var(--color-primary);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-3);
+            margin-top: var(--space-3);
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-top: 2px;
+            accent-color: var(--color-primary);
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            line-height: 1.4;
+            cursor: pointer;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: var(--space-6);
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .auth-link {
+            color: var(--color-primary);
+            font-weight: var(--font-medium);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .auth-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Hogar Setup */
+        .home-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--color-primary-50);
+            color: var(--color-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--space-4);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <a href="index.html" class="logo">
+                    <div class="logo-mark" style="width:30px;height:30px;font-size:1rem">A</div>
+                    <span class="logo-text" style="font-size:1.2rem">Ahorra <span>360</span></span>
+                </a>
+                <h1 class="auth-title" id="viewTitle">Crea tu cuenta</h1>
+                <p class="auth-sub" id="viewSub">Empieza a entender tus facturas en 60 segundos.</p>
+            </div>
+
+            <!-- VISTA: REGISTRO -->
+            <div id="view-register" class="view active">
+                <button class="btn btn-lg social-btn" type="button" onclick="loginWithGoogle()">
+                    <i data-lucide="chrome" width="18" height="18"></i> Continuar con Google
+                </button>
+                <div class="divider-text">o usa tu email</div>
+
+                <form class="flex-col gap-4" id="registerForm" novalidate>
+                    <div class="input-group">
+                        <label class="input-label">Email</label>
+                        <input type="email" class="input" placeholder="tu@email.com" id="regEmail">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Contraseña</label>
+                        <input type="password" class="input" placeholder="••••••••" id="regPassword">
+                    </div>
+
+                    <div class="flex-col gap-2 mt-2">
+                        <label class="checkbox-group">
+                            <input type="checkbox" id="regCb1">
+                            <span class="checkbox-label">He leído y acepto los <a href="#" class="auth-link">Términos de
+                                    uso</a> y la <a href="#" class="auth-link">Política de Privacidad</a>.</span>
+                        </label>
+                        <label class="checkbox-group">
+                            <input type="checkbox" id="regCb2">
+                            <span class="checkbox-label">Consiento el procesamiento automático de mis facturas para
+                                generar explicaciones y comparativas (requerido).</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-full mt-4" style="justify-content:center">
+                        Crear cuenta
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    ¿Ya tienes cuenta? <span class="auth-link" onclick="goToView('login')">Inicia sesión</span>
+                </div>
+            </div>
+
+            <!-- VISTA: LOGIN -->
+            <div id="view-login" class="view">
+                <button class="btn btn-lg social-btn" type="button" onclick="loginWithGoogle()">
+                    <i data-lucide="chrome" width="18" height="18"></i> Iniciar con Google
+                </button>
+                <div class="divider-text">o usa tu email</div>
+
+                <form class="flex-col gap-4" id="loginForm">
+                    <div class="input-group">
+                        <label class="input-label">Email</label>
+                        <input type="email" class="input" placeholder="tu@email.com" required value="demo@ahorra360.es">
+                    </div>
+                    <div class="input-group">
+                        <div class="flex justify-between items-center w-full">
+                            <label class="input-label">Contraseña</label>
+                            <a href="#" class="auth-link text-xs">¿La olvidaste?</a>
+                        </div>
+                        <input type="password" class="input" placeholder="••••••••" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-full mt-4" style="justify-content:center">
+                        Iniciar sesión
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    ¿No tienes cuenta? <span class="auth-link" onclick="goToView('register')">Regístrate</span>
+                </div>
+            </div>
+
+            <!-- VISTA: SETUP HOGAR (ONBOARDING PASO 1) -->
+            <div id="view-setup" class="view text-center">
+                <div class="home-icon">
+                    <i data-lucide="home" width="32" height="32"></i>
+                </div>
+                <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:8px">Configura tu hogar</h2>
+                <p class="text-secondary text-sm mb-6">¿Cómo quieres llamar a tu buzón de facturas?</p>
+
+                <form class="flex-col gap-4 text-left" id="setupForm">
+                    <div class="input-group">
+                        <label class="input-label">Nombre del Hogar</label>
+                        <input type="text" class="input" placeholder="Ej: Casa García, Mi Piso..." required>
+                    </div>
+                    <p class="text-xs text-muted mt-2">
+                        <i data-lucide="info" width="12" height="12"
+                            style="display:inline-block;vertical-align:middle;margin-right:4px"></i>
+                        Te asignaremos un correo único (ej: <code>casa-garcia@ahorra360.es</code>) al que podrás
+                        reenviar tus facturas para que se analicen solas.
+                    </p>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-full mt-4" style="justify-content:center">
+                        Continuar
+                    </button>
+                </form>
+            </div>
+
+            <!-- VISTA: AHA MOMENT (ONBOARDING PASO 2) -->
+            <div id="view-aha" class="view text-center">
+                <div class="home-icon" style="background:#FEF3C7;color:#D97706;animation:pulse 2s infinite">
+                    <i data-lucide="qr-code" width="32" height="32"></i>
+                </div>
+                <h2 style="font-size:1.5rem;font-weight:800;font-family:var(--font-heading);margin-bottom:8px">¡Empieza
+                    a ahorrar ahora!</h2>
+                <p class="text-secondary text-sm mb-6">Tu factura de la luz tiene un código QR oficial de la CNMC.
+                    Escanéalo y te diremos al instante si pagas de más.</p>
+
+                <div class="flex-col gap-3">
+                    <button class="btn btn-accent btn-lg w-full"
+                        style="justify-content:center;font-size:1.1rem;box-shadow:0 10px 25px -5px rgba(22,163,74,0.4)"
+                        onclick="window.location.href='dashboard.html?tour=1'">
+                        <i data-lucide="scan" width="20" height="20"></i> Escanear QR ahora
+                    </button>
+                    <button class="btn btn-secondary btn-lg w-full" style="justify-content:center"
+                        onclick="window.location.href='dashboard.html'">
+                        Subir PDF en su lugar
+                    </button>
+                    <button class="btn btn-ghost w-full" style="justify-content:center;margin-top:8px"
+                        onclick="window.location.href='dashboard.html'">
+                        Saltar y cruzar al panel
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            alert('Error técnico detectado:\n' + msg + '\nLínea: ' + lineNo);
+            return false;
+        };
+        lucide.createIcons();
+
+        // Apply theme if set
+        if (localStorage.getItem('a360-theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+
+        // Handle URL params for mode
+        const urlParams = new URLSearchParams(window.location.search);
+        const modeParam = urlParams.get('mode');
+
+        if (modeParam === 'login') {
+            goToView('login');
+        } else {
+            goToView('register');
+        }
+
+        function goToView(viewId) {
+            // Hide all
+            document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+            // Show requested
+            document.getElementById('view-' + viewId).classList.add('active');
+
+            // Update headers
+            const title = document.getElementById('viewTitle');
+            const sub = document.getElementById('viewSub');
+
+            if (viewId === 'register') {
+                title.innerText = 'Crea tu cuenta';
+                sub.innerText = 'Empieza a entender tus facturas en 60 segundos.';
+                document.querySelector('.auth-header').style.display = 'block';
+            } else if (viewId === 'login') {
+                title.innerText = 'Inicia sesión';
+                sub.innerText = '¡Qué bueno verte de nuevo!';
+                document.querySelector('.auth-header').style.display = 'block';
+            } else {
+                document.querySelector('.auth-header').style.display = 'none';
+                if (viewId === 'aha') {
+                    const audio = new Audio('data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAQAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq');
+                    audio.volume = 0; // Just to satisfy any browser interaction requirement silently if needed
+                    audio.play().catch(e => console.log(e));
+                }
+            }
+        }
+
+        // Form Handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnReg = document.querySelector('#registerForm button[type="submit"]');
+            document.getElementById('registerForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('regEmail').value;
+                const pass = document.getElementById('regPassword').value;
+                const cb1 = document.getElementById('regCb1').checked;
+                const cb2 = document.getElementById('regCb2').checked;
+
+                if (!email) {
+                    alert('Por favor, introduce tu email.');
+                    return;
+                }
+                if (pass.length < 6) {
+                    alert('La contraseña debe tener al menos 6 caracteres.');
+                    return;
+                }
+                if (!cb1 || !cb2) {
+                    alert('Debes marcar ambas casillas para poder continuar.');
+                    return;
+                }
+
+                btnReg.innerText = 'Creando cuenta...';
+                btnReg.disabled = true;
+
+                try {
+                    const success = await registerUser(email, pass);
+                    if (success) {
+                        goToView('setup');
+                        return; // no need to re-enable, user moves on
+                    }
+                } catch (err) {
+                    console.error('[auth] registerUser threw unexpectedly:', err);
+                } finally {
+                    // SIEMPRE resetear el botón si el usuario sigue en esta vista
+                    if (document.getElementById('view-register').classList.contains('active')) {
+                        btnReg.innerText = 'Crear cuenta';
+                        btnReg.disabled = false;
+                    }
+                }
+            });
+
+            const btnLog = document.querySelector('#loginForm button[type="submit"]');
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                btnLog.innerText = 'Iniciando...';
+                btnLog.disabled = true;
+                const email = e.target.querySelector('input[type=email]').value;
+                const pass = e.target.querySelector('input[type=password]').value;
+
+                try {
+                    await loginUser(email, pass);
+                } catch (err) {
+                    console.error('[auth] loginUser threw unexpectedly:', err);
+                } finally {
+                    if (document.getElementById('view-login').classList.contains('active')) {
+                        btnLog.innerText = 'Iniciar sesión';
+                        btnLog.disabled = false;
+                    }
+                }
+            });
+
+            const btnSetup = document.querySelector('#setupForm button[type="submit"]');
+            document.getElementById('setupForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                btnSetup.innerText = 'Guardando...';
+                btnSetup.disabled = true;
+                const name = e.target.querySelector('input[type=text]').value;
+                try {
+                    await setHogar(name);
+                } catch (err) {
+                    console.error('[auth] setHogar threw unexpectedly:', err);
+                    btnSetup.innerText = 'Continuar';
+                    btnSetup.disabled = false;
+                }
+            });
+        });
+    </script>
+    <script src="app.js"></script>
+</body>
+
+</html>

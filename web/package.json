@@ -1,0 +1,12 @@
+{
+  "name": "ahorra-360-web",
+  "version": "1.0.0",
+  "description": "Ahorra 360 – Frontend web",
+  "scripts": {
+    "start": "live-server --port=3000 --open=index.html --no-browser=false",
+    "dev": "live-server --port=3000"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}
