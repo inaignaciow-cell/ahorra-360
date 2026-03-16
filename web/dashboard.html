@@ -486,6 +486,20 @@
         .energy-badge { width: 42px; height: 42px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.1rem; color: white; flex-shrink: 0; }
         .energy-A { background: #15803d; } .energy-B { background: #16a34a; } .energy-C { background: #65a30d; }
         .energy-D { background: #ca8a04; } .energy-E { background: #d97706; } .energy-F { background: #dc2626; } .energy-G { background: #991b1b; }
+
+        /* Pages outside main need sidebar offset */
+        #page-score.active, #page-hogar.active, #page-perfil.active {
+            margin-left: var(--sidebar-w);
+            padding: var(--space-8) var(--space-6) var(--space-16);
+            max-width: var(--max-width);
+            margin-right: auto;
+        }
+        @media(max-width: 1024px) {
+            #page-score.active, #page-hogar.active, #page-perfil.active {
+                margin-left: 0;
+            }
+        }
+
     </style>
 </head>
 
@@ -1252,6 +1266,8 @@
 
                 </div>
             </div>
+            <!-- PAGE: SCORE (content rendered below the container via fixed routing) -->
+            <div id="page-score-anchor" class="page" style="height:0;overflow:visible"></div>
 
         </div>
     </main>
@@ -1358,7 +1374,7 @@
     </div>
 
     <!-- PAGE: SCORE GLOBAL -->
-    <div id="page-score" class="page animate-fade" style="display:none">
+    <div id="page-score" class="page animate-fade">
         <div class="page-header"><div><h1 class="page-title">Mi Score de Ahorro</h1><p class="page-sub">Cuánto estás optimizando tu economía doméstica. Actualizado hoy.</p></div></div>
         <div class="grid-2 mb-8">
             <div class="card text-center">
@@ -1426,7 +1442,7 @@
     </div>
 
     <!-- PAGE: MI HOGAR -->
-    <div id="page-hogar" class="page animate-fade" style="display:none">
+    <div id="page-hogar" class="page animate-fade">
         <div class="page-header"><div><h1 class="page-title">Mi Hogar</h1><p class="page-sub">Datos de tu vivienda y servicios contratados.</p></div><button class="btn btn-primary" onclick="saveHogarForm()"><i data-lucide="save" width="16"></i> Guardar cambios</button></div>
         <div class="grid-2 mb-6">
             <div class="card">
@@ -1468,7 +1484,7 @@
     </div>
 
     <!-- PAGE: MI PERFIL -->
-    <div id="page-perfil" class="page animate-fade" style="display:none">
+    <div id="page-perfil" class="page animate-fade">
         <div class="page-header"><div><h1 class="page-title">Mi Perfil</h1><p class="page-sub">Gestiona tu cuenta y preferencias.</p></div></div>
         <div class="grid-2 mb-6">
             <div class="card">
