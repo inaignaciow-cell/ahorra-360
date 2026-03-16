@@ -89,7 +89,7 @@ img {
 }
 
 .page.active {
-    display: block;
+    display: block !important;
 }
 
 /* BUTTONS */
