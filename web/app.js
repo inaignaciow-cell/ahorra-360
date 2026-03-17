@@ -189,6 +189,49 @@ function navigate(page) {
   if(page==='hogar')      renderHogar();
   if(page==='perfil')     renderPerfil();
   if(typeof lucide !== 'undefined') setTimeout(()=>lucide.createIcons(),50);
+
+  // Mostrar tutorial inteligente si es la primera vez
+  setTimeout(() => showTutorial(page), 400);
+}
+
+// ── ONBOARDING TUTORIALS ──────────────────
+function showTutorial(page) {
+  const viewed = JSON.parse(localStorage.getItem('ahorra360-tutorials') || '{}');
+  if (viewed[page]) return; // Ya lo vio
+
+  const tuts = {
+    inicio: { title: '¡Bienvenido a tu Panel!', text: 'Aquí verás un resumen rápido de tu salud financiera y las alertas más importantes que nuestra IA encuentre para ti.' },
+    bandeja: { title: 'Tu buzón digital', text: 'Sube tus facturas arrastrándolas o toma una foto desde el móvil. La IA extraerá todos los datos al instante para empezar a buscar ahorros.' },
+    comparador: { title: 'El Comparador Inteligente', text: 'No busques tú. La IA compara tus facturas automáticamente contra todo el mercado de luz, gas y telecos vivos.' },
+    hogar: { title: 'Configura tu Casa', text: 'Añade los m² y cuántos vivís para que la IA sepa decirte si estás consumiendo más de lo normal.' },
+    alertas: { title: 'Alertas tempranas', text: 'Nuestra IA lee la letra pequeña por ti, avisándote si una promoción caduca pronto o si te han colado un recargo injustificado.' }
+  };
+
+  const t = tuts[page];
+  if (!t) return;
+
+  // Marcar como visto
+  viewed[page] = true;
+  localStorage.setItem('ahorra360-tutorials', JSON.stringify(viewed));
+
+  // Crear el modal
+  const overlay = document.createElement('div');
+  overlay.className = 'animate-fade-in';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  
+  const modal = document.createElement('div');
+  modal.className = 'animate-slide-up';
+  modal.style.cssText = 'background:var(--bg-surface);padding:30px;border-radius:24px;width:100%;max-width:400px;text-align:center;box-shadow:var(--shadow-xl);border:1px solid var(--border)';
+  
+  modal.innerHTML = `
+    <div style="width:60px;height:60px;background:var(--ai-gradient);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:white;font-size:24px">✨</div>
+    <h3 style="font-family:var(--font-heading);font-weight:800;font-size:1.3rem;margin-bottom:12px;color:var(--text-primary)">${t.title}</h3>
+    <p style="color:var(--text-secondary);font-size:0.95rem;line-height:1.5;margin-bottom:24px">${t.text}</p>
+    <button class="btn btn-primary btn-lg w-full" style="border-radius:99px" onclick="this.parentElement.parentElement.remove()">¡Entendido!</button>
+  `;
+  
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
 }
 
 function openBill(id) {
@@ -1012,5 +1055,10 @@ function setSidebarUser(name, email, initials) {
   if(sa) sa.textContent = initials;
 }
 
-document.addEventListener('DOMContentLoaded', initApp);
-
+// Fix para PWA Zombie State (Carrera entre CDN y DOM)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  // DOM ya estaba listo cuando el script parseó
+  initApp();
+}
