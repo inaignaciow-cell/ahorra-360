@@ -5,8 +5,8 @@
 // ── SUPABASE ──────────────────────────────
 // ⚠️ REEMPLAZA ESTOS VALORES con los de tu proyecto Supabase:
 //    Dashboard → Settings → API
-const SUPA_URL = 'REEMPLAZA_CON_TU_SUPABASE_URL';   // ej: https://xxxx.supabase.co
-const SUPA_KEY = 'REEMPLAZA_CON_TU_SUPABASE_ANON_KEY'; // empieza por eyJ...
+const SUPA_URL = 'https://gzkhrgmfbzkskmnselne.supabase.co';   // URL de tu proyecto Supabase
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2hyZ21mYnprc2ttbnNlbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzAzNzYsImV4cCI6MjA4OTI0NjM3Nn0.t9yFb6qtHQCGfF4n9HOLU-uceIVUYXxDsAp3BSXbl50'; // anon public key
 let supabase = null;
 const DEMO_MODE = SUPA_URL.includes('REEMPLAZA') || SUPA_KEY.includes('REEMPLAZA');
 if (!DEMO_MODE) {
