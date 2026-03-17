@@ -1,694 +1,822 @@
-/**
- * Ahorra 360 - Frontend Core Logic
- * Handles Supabase Auth, mock uploads, and data rendering.
- */
+/* ═══════════════════════════════════════════
+   AHORRA 360 — app.js  (Part 1: Core + Data)
+   ═══════════════════════════════════════════ */
 
-const SUPABASE_URL = 'https://gzkhrgmfbzkskmnselnz.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2hyZ21mYnprc2ttbnNlbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzAzNzYsImV4cCI6MjA4OTI0NjM3Nn0.t9yFb6qtHQCGfF4n9HOLU-uceIVUYXxDsAp3BSXbl50';
-
-// Initialize Supabase safely — only works from http:// (not file://)
-window.supabase = window.supabase || null;
-const isLocalFile = window.location.protocol === 'file:';
-if (isLocalFile) {
-    console.warn('[Ahorra360] Abriendo desde file:// — Supabase Auth no funcionará correctamente. Usa el servidor local.');
-}
+// ── SUPABASE ──────────────────────────────
+const SUPA_URL = 'https://your-project.supabase.co';
+const SUPA_KEY = 'your-anon-key';
+let supabase = null;
 try {
-    if (window.supabase && !isLocalFile && typeof window.supabase.createClient === 'function') {
-        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log('[Ahorra360] Supabase conectado correctamente.');
-    } else {
-        window.supabase = null;
-    }
-} catch (e) {
-    console.error('[Ahorra360] Error inicializando Supabase:', e);
-    window.supabase = null;
+  if (window.supabase) supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+} catch(e) {}
+
+// ── THEME ──────────────────────────────────
+const html = document.documentElement;
+const saved = localStorage.getItem('ahorra360-theme') || 'light';
+html.setAttribute('data-theme', saved);
+const themeBtn = document.getElementById('themeBtn');
+if (themeBtn) themeBtn.addEventListener('click', () => {
+  const n = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  html.setAttribute('data-theme', n);
+  localStorage.setItem('ahorra360-theme', n);
+});
+
+// ── TOAST ──────────────────────────────────
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.background = type==='error' ? 'var(--color-danger)' :
+                        type==='ok'    ? 'var(--color-accent)' : 'var(--text-primary)';
+  t.style.color = '#fff';
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.style.display='none'; }, 3000);
 }
-const supabase = window.supabase;
 
-const STATE_KEY = 'a360_data';
-const DATA_VERSION = 2; // Bump this to force-reset stale localStorage data
-
-// Default mock state
-const DEFAULT_STATE = {
-    user: null,
-    hogar: null,
-    invoices: [
-        {
-            id: '123',
-            vertical: 'Luz',
-            provider: 'Endesa',
-            date: '1 dic – 31 dic 2025',
-            amount: 66.23,
-            consumption: '234 kWh',
-            status: 'Revisada OK',
-            saving: 180,
-            timestamp: Date.now() - 1000000
-        },
-        {
-            id: '456',
-            vertical: 'Telecos',
-            provider: 'Orange',
-            date: '1 ene – 31 ene 2026',
-            amount: 49.99,
-            consumption: 'Fibra + 2 Líneas Móvil',
-            status: 'Alerta Promo',
-            saving: 360,
-            timestamp: Date.now() - 500000
-        },
-        {
-            id: '789',
-            vertical: 'Gas',
-            provider: 'Naturgy',
-            date: '10 nov – 10 ene 2026',
-            amount: 112.45,
-            consumption: '1.200 kWh',
-            status: 'Revisada OK',
-            saving: 45,
-            timestamp: Date.now() - 800000
-        },
-        {
-            id: '101',
-            vertical: 'Seguro Hogar',
-            provider: 'Mapfre',
-            date: 'Anual 2026',
-            amount: 285.00,
-            consumption: 'Cobertura Completa',
-            status: 'Renovación Lista',
-            saving: 0,
-            timestamp: Date.now() - 1200000
-        },
-        {
-            id: '102',
-            vertical: 'Seguro Coche',
-            provider: 'Mutua Madrileña',
-            date: 'Anual 2026',
-            amount: 420.50,
-            consumption: 'Todo Riesgo Franquicia',
-            status: 'Revisada OK',
-            saving: 85,
-            timestamp: Date.now() - 2000000
-        },
-        {
-            id: '103',
-            vertical: 'Combustible',
-            provider: 'Repsol',
-            date: '15 feb 2026',
-            amount: 55.20,
-            consumption: '34 Litros (Diésel)',
-            status: 'Mejorable',
-            saving: 96,
-            timestamp: Date.now() - 300000
-        }
+// ── MOCK DATA ─────────────────────────────
+const MOCK_BILLS = [
+  { id:1, vertical:'luz',        emoji:'⚡', name:'Endesa — Tarifa 2.0TD',      amount:66.23, date:'2026-03-01', saving:180, status:'analizado',
+    lines:[
+      {name:'Término de potencia (P1)',  amount:14.50, info:'Potencia contratada: 3.45 kW', conf:'high'},
+      {name:'Término de potencia (P2)',  amount:8.20,  info:'Potencia valle', conf:'high'},
+      {name:'Energía consumida P1',      amount:18.30, info:'234 kWh punta · 0.1847 €/kWh', conf:'high'},
+      {name:'Energía consumida P2',      amount:11.10, info:'123 kWh llano', conf:'medium'},
+      {name:'Energía consumida P3',      amount:6.40,  info:'98 kWh valle', conf:'medium'},
+      {name:'Impuesto electricidad (5%)',amount:2.91,  info:'Regulado, no negociable', conf:'high'},
+      {name:'Alquiler contador',         amount:0.81,  info:'Coste fijo mensual REE', conf:'high'},
+      {name:'IVA (21%)',                 amount:4.01,  info:'Aplicado sobre la base', conf:'high'},
     ],
-    alerts: [
-        { id: 1, type: 'promo', title: 'Fin de promoción Orange Fibra', desc: 'Tu descuento del 50% "Promoción Bienvenida" termina el 15 de Abril (en 30 días). Tu cuota pasará a 99,98€.' },
-        { id: 2, type: 'seguro', title: 'Seguro de Hogar Mapfre: Renovación próxima', desc: 'El preaviso legal de 30 días para cancelar sin penalización empieza en 2 semanas. Mapfre prevé una subida del 8% de tu prima.' },
-        { id: 3, type: 'gasolina', title: 'Gasolina: Ruta habitual cara', desc: 'Sueles repostar en Repsol A-6. Hay una gasolinera low-cost a 3 min de tu ruta que baja el litro en 0.18€.' }
-    ]
+    recs:[
+      {title:'Bajar potencia a 3.45 kW', saving:45, effort:'Baja', info:'Nunca superas los 2.8 kW reales. Podrías bajar sin cortes.'},
+      {title:'Cambiar hábitos: lavadora en horario valle', saving:60, effort:'Baja', info:'De 22h a 8h la energía cuesta hasta 3x menos. '},
+      {title:'Cambiar a tarifa indexada (PVPC-plus)', saving:75, effort:'Media', info:'Según tu perfil de consumo ahorrarías con PVPC en verano.'},
+    ],
+    chatContext:'factura de luz Endesa, 234 kWh, tarifa 2.0TD, potencia 3.45kW, importe €66.23'
+  },
+  { id:2, vertical:'telecos',    emoji:'📱', name:'Orange — Pack Fusión 100',   amount:49.99, date:'2026-02-15', saving:276, status:'alerta',
+    lines:[
+      {name:'Fibra 100 Mb simétrico', amount:20.00, info:'Tarifa base fibra', conf:'high'},
+      {name:'Línea móvil 30 GB',      amount:18.00, info:'Sin roaming UE', conf:'high'},
+      {name:'Descuento fidelización', amount:-5.00, info:'⚠️ Caduca en 18 días el 04/04/2026', conf:'high'},
+      {name:'IVA (21%)',              amount:11.55, info:'Sobre tarifa base+móvil', conf:'high'},
+      {name:'TV Orange (addon)',      amount:5.44,  info:'Cine+Series — ¿lo miras?', conf:'medium'},
+    ],
+    recs:[
+      {title:'Cambiar a Digi (misma cobertura)', saving:276, effort:'Baja', info:'Fibra 1Gb + móvil 50GB por €20/mes. Ahorro €30/mes sin permanencia.'},
+      {title:'Cancelar TV Orange', saving:65, effort:'Baja', info:'Si no ves el addon de TV, €5.44/mes de ahorro puro.'},
+      {title:'Negociar renovación antes del 04/04', saving:120, effort:'Media', info:'Retención te puede ofrecer mismo precio u otro descuento.'},
+    ],
+    chatContext:'factura telecos Orange Fusión, €49.99/mes, promo caduca 04/04/2026, fibra 100Mb + móvil 30GB'
+  },
+  { id:3, vertical:'gas',        emoji:'🔥', name:'Naturgy — TUR Gas',          amount:38.60, date:'2026-02-10', saving:120, status:'analizado',
+    lines:[
+      {name:'Caudal fijo (€/día)',    amount:8.20,  info:'Término fijo regulado', conf:'high'},
+      {name:'Consumo: 148 kWh',       amount:19.24, info:'Precio TUR: 0.1300 €/kWh', conf:'high'},
+      {name:'Impuesto hidrocarburos', amount:2.30,  info:'Regulado', conf:'high'},
+      {name:'IVA (21%)',              amount:8.86,  info:'', conf:'high'},
+    ],
+    recs:[
+      {title:'Salir de TUR a tarifa libre', saving:84, effort:'Media', info:'Endesa Gas libre: 0.095 €/kWh vs tu 0.130 €/kWh actual.'},
+      {title:'Revisar caldera (eficiencia)', saving:36, effort:'Alta', info:'Caldera A+ reduce consumo en torno a un 15-20%.'},
+    ],
+    chatContext:'factura gas Naturgy TUR, 148 kWh, €38.60, caudal fijo €8.20'
+  },
+];
+
+const MOCK_COMPARATOR = {
+  luz:[
+    {name:'Octopus Energy Flex',      price:52.10, saving:14.13, badge:'Recomendado IA', recommended:true, provider:'Octopus',  details:'Indexada OMIE + 3€/mes. Ideal si consumes en valle.', affiliate:true},
+    {name:'Holaluz Clara 24h',        price:55.80, saving:10.43, badge:'Sin permanencia',recommended:false,provider:'Holaluz',  details:'Precio fijo 12m. Renovables 100%.', affiliate:true},
+    {name:'Repsol Luz Fija Hogar',    price:58.40, saving:7.83,  badge:'Precio fijo',   recommended:false,provider:'Repsol',   details:'Precio bloqueado 18 meses. Sin sorpresas.', affiliate:true},
+    {name:'PVPC (precio mercado)',    price:59.20, saving:7.03,  badge:'Sin afiliación',recommended:false,provider:'Red',      details:'Tarifa regulada. Varía cada hora.', affiliate:false},
+    {name:'Iberdrola Click Fija',     price:63.50, saving:2.73,  badge:'',              recommended:false,provider:'Iberdrola',details:'Contrato 12m renovable.', affiliate:true},
+  ],
+  gas:[
+    {name:'Endesa Gas Libre',         price:31.20, saving:7.40,  badge:'Recomendado IA', recommended:true, details:'0.095€/kWh · Sin permanencia', affiliate:true},
+    {name:'Naturgy Gas Libre',        price:33.80, saving:4.80,  badge:'',              recommended:false, details:'0.110€/kWh · 12m permanencia', affiliate:true},
+    {name:'Iberdrola Gas Fijo',       price:35.40, saving:3.20,  badge:'Precio fijo',   recommended:false, details:'0.118€/kWh · Precio bloqueado', affiliate:true},
+    {name:'TUR Gas (actual)',         price:38.60, saving:0,     badge:'Tu tarifa actual',recommended:false,details:'0.130€/kWh · Precio regulado', affiliate:false},
+  ],
+  telecos:[
+    {name:'Digi Fibra 1Gb + Móvil 50GB', price:20.00, saving:29.99, badge:'Recomendado IA', recommended:true, details:'Sin cláusulas ocultas. Cobertura: Vodafone.', affiliate:true},
+    {name:'MásMóvil Fibra 600Mb + 30GB', price:25.99, saving:24.00, badge:'Popular',        recommended:false, details:'Sin permanencia. Precio estable.', affiliate:true},
+    {name:'Simyo Fibra 300Mb + 25GB',    price:29.99, saving:20.00, badge:'',              recommended:false, details:'Fibra Movistar.', affiliate:true},
+    {name:'Orange Fusión 100 (actual)',   price:49.99, saving:0,     badge:'Tu tarifa actual',recommended:false,details:'⚠️ Promo caduca 04/04/2026', affiliate:false},
+  ],
+  combustible:[
+    {name:'Repsol — C/ Gran Vía',   price:1.749, saving:0.050, badge:'Más barata cerca', recommended:true,  details:'0.3 km · Horario: 24h'},
+    {name:'BP — C/ Princesa',       price:1.779, saving:0.020, badge:'',                recommended:false, details:'1.1 km · Horario: 6-23h'},
+    {name:'Cepsa — M-30',           price:1.789, saving:0.010, badge:'',                recommended:false, details:'2.4 km · Autopista'},
+    {name:'Shell — C/ Bravo Murillo',price:1.799,saving:0,     badge:'Tu última gasolinera',recommended:false,details:'0.8 km'},
+  ],
 };
 
-function getState() {
-    const data = localStorage.getItem(STATE_KEY);
-    if (data) {
-        const parsed = JSON.parse(data);
-        // If data version doesn't match, reset to default (clears stale demo data)
-        if (parsed._version !== DATA_VERSION) {
-            console.log('[Ahorra360] Stale localStorage data detected, resetting to default.');
-            localStorage.removeItem(STATE_KEY);
-            const fresh = JSON.parse(JSON.stringify(DEFAULT_STATE));
-            fresh._version = DATA_VERSION;
-            return fresh;
-        }
-        return parsed;
-    }
-    const fresh = JSON.parse(JSON.stringify(DEFAULT_STATE));
-    fresh._version = DATA_VERSION;
-    return fresh;
+const MOCK_ALERTS = [
+  {id:1, sev:'urgent',  title:'Promo Orange caduca en 18 días', body:'Tu descuento de €5/mes desaparece el 04/04/2026. Sin acción, subirás a €79.99/mes.', cta:'Ver comparador',  ctaFn:"navigate('comparador')", daysLeft:18},
+  {id:2, sev:'warning', title:'Factura de luz subió un 22%',  body:'Tu último recibo de Endesa: €66.23 vs €54.30 en febrero. La IA detecta la causa.', cta:'Ver detalle', ctaFn:"openBill(1)"},
+  {id:3, sev:'info',    title:'BP en Gran Vía bajó a 1.749 €/l', body:'La gasolinera más cercana bajó su precio. Si repostas mañana ahorras ~€3.', cta:'Ver combustible', ctaFn:"setCompTab('combustible',null)"},
+];
+
+const MOCK_QUICKWINS = [
+  {title:'Bajar potencia eléctrica a 3.45 kW', saving:'€45/año', effort:'2 min',  fn:"openBill(1)"},
+  {title:'Cambiar lavadora al horario valle (22-8h)', saving:'€60/año', effort:'0 min', fn:''},
+  {title:'Cambiar a Digi (misma cobertura)', saving:'€276/año', effort:'15 min', fn:"navigate('comparador')"},
+];
+
+const MOCK_VERTICAL_STATUS = [
+  {emoji:'⚡', name:'Luz',        status:'warning', label:'Tarifa suboptimal'},
+  {emoji:'🔥', name:'Gas',        status:'warning', label:'En TUR — puede mejorar'},
+  {emoji:'📱', name:'Telecos',    status:'urgent',  label:'⚠ Promo caduca en 18d'},
+  {emoji:'⛽', name:'Combustible',status:'ok',       label:'Precio razonable'},
+  {emoji:'🛡️', name:'Seguros',    status:'none',    label:'Sin analizar'},
+];
+
+const ACHIEVEMENTS = [
+  {emoji:'📄', title:'Primera factura',    desc:'Subiste tu primera factura', unlocked:true},
+  {emoji:'⚡', title:'Experto en Luz',     desc:'Analizaste 3 facturas de luz', unlocked:true},
+  {emoji:'🥷', title:'Ahorrador Ninja',   desc:'Seguiste 5 recomendaciones IA', unlocked:false},
+  {emoji:'🔥', title:'Campeón del Gas',   desc:'Optimizaste tu tarifa de gas',  unlocked:false},
+  {emoji:'📱', title:'Sin Permanencia',   desc:'Cambiaste de proveedor telecos', unlocked:false},
+  {emoji:'💚', title:'Eco Friendly',      desc:'Reduciste 200kWh en un mes',    unlocked:false},
+];
+
+const HOGAR_SERVICES = [
+  {emoji:'⚡', name:'Luz',        provider:'Endesa',   amount:66.23, expiry:'2027-06', active:true},
+  {emoji:'🔥', name:'Gas',        provider:'Naturgy',  amount:38.60, expiry:'2026-09', active:true},
+  {emoji:'📱', name:'Telecos',    provider:'Orange',   amount:49.99, expiry:'2026-04', active:true},
+  {emoji:'⛽', name:'Combustible',provider:'—',        amount:0,     expiry:'',       active:false},
+  {emoji:'🛡️', name:'Seguros',    provider:'—',        amount:0,     expiry:'',       active:false},
+];
+
+const SPENDING_HISTORY = [
+  {month:'Abr',total:168},{month:'May',total:155},{month:'Jun',total:130},
+  {month:'Jul',total:112},{month:'Ago',total:118},{month:'Sep',total:135},
+  {month:'Oct',total:152},{month:'Nov',total:170},{month:'Dic',total:178},
+  {month:'Ene',total:165},{month:'Feb',total:148},{month:'Mar',total:154},
+];
+
+// ── ROUTING ───────────────────────────────
+let currentPage = 'inicio';
+let currentBill = null;
+let currentCompTab = 'luz';
+let compConsumption = { luz: 234, gas: 148, telecos: 30 };
+
+function navigate(page) {
+  if(page === 'upload'){ document.getElementById('uploadZone').scrollIntoView({behavior:'smooth'}); navigate('bandeja'); return; }
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if(el) el.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+  document.querySelectorAll('.mob-btn').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+  // init page
+  if(page==='inicio')     renderInicio();
+  if(page==='bandeja')    renderBandeja();
+  if(page==='comparador') renderComparador();
+  if(page==='score')      renderScore();
+  if(page==='alertas')    renderAlertas();
+  if(page==='hogar')      renderHogar();
+  if(page==='perfil')     renderPerfil();
+  if(typeof lucide !== 'undefined') setTimeout(()=>lucide.createIcons(),50);
 }
 
-function saveState(state) {
-    localStorage.setItem(STATE_KEY, JSON.stringify(state));
+function openBill(id) {
+  currentBill = MOCK_BILLS.find(b=>b.id===id);
+  if(!currentBill) return;
+  navigate('detalle');
+  renderDetalle();
 }
 
-async function loginUser(email, password) {
-    if (!supabase) {
-        console.log('[Ahorra360] Supabase no disponible → usando modo demo');
-        return mockLoginUser(email, password);
-    }
-    try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            // Mensaje de error claro en español
-            const msg = error.message.includes('Invalid login') || error.message.includes('invalid_credentials')
-                ? 'Email o contraseña incorrectos. Comprueba tus datos.'
-                : 'Error de inicio de sesión: ' + error.message;
-            showToast(msg, 'error');
-            return false;
-        }
-        const state = getState();
-        state.user = { email: data.user.email, name: data.user.email.split('@')[0], id: data.user.id };
-        saveState(state);
-        window.location.href = 'dashboard.html';
-        return true;
-    } catch (e) {
-        console.error('[Ahorra360] Error de red al iniciar sesión:', e);
-        showToast('Error de conexión. Comprueba tu internet e inténtalo de nuevo.', 'error');
-        return false;
-    }
+// ── HELPERS ────────────────────────────────
+function animateCounter(el, target, dur=1400, prefix='', suffix='') {
+  if(!el) return;
+  const start = performance.now();
+  const step = now => {
+    const p = Math.min((now-start)/dur,1);
+    const ease = 1 - Math.pow(1-p,3);
+    el.textContent = prefix + Math.round(target*ease).toLocaleString('es-ES') + suffix;
+    if(p<1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function fmt(n){ return '€'+n.toFixed(2).replace('.',','); }
+function fmtSaving(n){ return n>0?'+'+fmt(n):'−'+fmt(Math.abs(n)); }
+
+// ── AUTH HELPERS ─────────────────────────────
+// Detect which page we're on
+const isDashboard = ()=>!!document.getElementById('page-inicio');
+
+// Show toast in both auth.html and dashboard.html
+function authToast(msg, type='') {
+  // dashboard toast
+  const dt = document.getElementById('toast');
+  if(dt) {
+    dt.textContent=msg;
+    dt.style.display='block';
+    dt.style.background=type==='error'?'var(--color-danger)':type==='ok'?'var(--color-accent)':'var(--text-primary)';
+    dt.style.color='#fff';
+    clearTimeout(dt._to);
+    dt._to=setTimeout(()=>{dt.style.display='none';},3000);
+    return;
+  }
+  // auth.html inline toast
+  let t = document.getElementById('authToastEl');
+  if(!t) {
+    t=document.createElement('div');
+    t.id='authToastEl';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 22px;border-radius:10px;font-size:.875rem;font-weight:600;z-index:9999;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.15);transition:all .3s ease';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.background=type==='error'?'#DC2626':type==='ok'?'#059669':'#1641B0';
+  t.style.color='#fff';
+  t.style.display='block';
+  clearTimeout(t._to);
+  t._to=setTimeout(()=>{ t.style.display='none'; },3200);
+}
+
+async function registerUser(email, pass) {
+  if(!supabase) {
+    authToast('Cuenta creada en modo demo ✓','ok');
+    setTimeout(()=>{ window.location.href='dashboard.html'; }, 900);
+    return true;
+  }
+  const {data, error} = await supabase.auth.signUp({email, password:pass});
+  if(error){ authToast(error.message,'error'); return false; }
+  // If email confirmation needed
+  if(data.user && !data.session) {
+    authToast('Revisa tu email para confirmar la cuenta ✉️','ok');
+    return false;
+  }
+  return true;
+}
+
+async function loginUser(email, pass) {
+  if(!supabase) {
+    authToast('Iniciando sesión en modo demo...','ok');
+    setTimeout(()=>{ window.location.href='dashboard.html'; }, 700);
+    return;
+  }
+  const {error} = await supabase.auth.signInWithPassword({email, password:pass});
+  if(error){ authToast(error.message,'error'); return; }
+  window.location.href='dashboard.html';
 }
 
 async function loginWithGoogle() {
-    if (!supabase) {
-        showToast('Conexión con base de datos no disponible.', 'error');
-        return;
-    }
-    try {
-        // Obtenemos la URL actual. Si estamos en file:// esto fallará al redirigir,
-        // pero para despliegues locales (localhost) o web funciona.
-        let redirectUrl = window.location.origin + window.location.pathname.replace('auth.html', 'dashboard.html');
-        if (redirectUrl.includes('file://')) {
-            showToast('Google Login requiere un servidor web. Usa la versión publicada.', 'warning');
-        }
-
-        const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: redirectUrl
-            }
-        });
-        if (error) {
-            showToast('Error conectando con Google: ' + error.message, 'error');
-        }
-    } catch (e) {
-        showToast('Error inesperado: ' + e.message, 'error');
-    }
+  if(!supabase) {
+    // Demo mode — redirect directly
+    authToast('Conectando con Google en modo demo...','ok');
+    setTimeout(()=>{ window.location.href='dashboard.html'; }, 800);
+    return;
+  }
+  await supabase.auth.signInWithOAuth({
+    provider:'google',
+    options:{ redirectTo: window.location.origin+'/dashboard.html' }
+  });
 }
-
-function mockLoginUser(email, password) {
-    const state = getState();
-    state.user = { email, name: email.split('@')[0] };
-    saveState(state);
-    window.location.href = 'dashboard.html';
-    return true;
-}
-
-async function registerUser(email, password) {
-    if (!supabase) {
-        console.log('[Ahorra360] Supabase no disponible → usando modo demo');
-        return mockRegisterUser(email, password);
-    }
-    try {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-
-        if (error) {
-            console.error('[Ahorra360] Error en signUp:', error);
-            // Mensajes de error en español claros
-            let msg = 'Error en el registro: ' + error.message;
-            if (error.message.includes('already registered') || error.message.includes('User already')) {
-                msg = 'Este email ya está registrado. ¿Quieres iniciar sesión?';
-            } else if (error.message.includes('Password should be')) {
-                msg = 'La contraseña debe tener al menos 6 caracteres.';
-            } else if (error.message.includes('valid email')) {
-                msg = 'Introduce un email válido.';
-            }
-            showToast(msg, 'error');
-            return false;
-        }
-
-        if (!data || !data.user) {
-            showToast('Error temporal. Por favor, inténtalo de nuevo.', 'error');
-            return false;
-        }
-
-        // Supabase puede devolver user sin email_confirmed_at
-        // si tiene activada la confirmación de email
-        const needsConfirmation = !data.user.email_confirmed_at && !data.session;
-        if (needsConfirmation) {
-            // Guardar datos básicos del usuario aunque no esté confirmado
-            const state = getState();
-            state.user = { email: data.user.email, name: data.user.email.split('@')[0], id: data.user.id, pendingConfirmation: true };
-            saveState(state);
-            // Mostrar pantalla de confirmación de email
-            showEmailConfirmationView(email);
-            return false; // No avanzar al setup todavía
-        }
-
-        // Usuario creado y confirmado (confirmación de email desactivada en Supabase)
-        const state = getState();
-        state.user = { email: data.user.email, name: data.user.email.split('@')[0], id: data.user.id };
-        saveState(state);
-        return true;
-
-    } catch (e) {
-        console.error('[Ahorra360] Error de red en registro:', e);
-        // Si hay error de red (CORS, sin conexión), usar modo demo
-        if (e.message && (e.message.includes('fetch') || e.message.includes('network') || e.message.includes('CORS'))) {
-            console.warn('[Ahorra360] Error de red → activando modo demo');
-            showToast('Sin conexión con el servidor. Entrando en modo demo.', 'warning');
-            return mockRegisterUser(email, password);
-        }
-        showToast('Error inesperado: ' + e.message, 'error');
-        return false;
-    }
-}
-
-// Muestra una vista de "confirma tu email" dentro del card de auth
-function showEmailConfirmationView(email) {
-    // Si existe la función goToView (estamos en auth.html), la usamos
-    // Añadimos una vista dinámica de confirmación
-    const container = document.querySelector('.auth-card');
-    if (!container) return;
-
-    // Ocultar todas las views
-    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    // Ocultar el header de auth
-    const hdr = document.querySelector('.auth-header');
-    if (hdr) hdr.style.display = 'none';
-
-    // Crear o actualizar la vista de confirmación
-    let confirmView = document.getElementById('view-confirm-email');
-    if (!confirmView) {
-        confirmView = document.createElement('div');
-        confirmView.id = 'view-confirm-email';
-        confirmView.className = 'view text-center';
-        container.appendChild(confirmView);
-    }
-    confirmView.innerHTML = `
-        <div style="width:64px;height:64px;background:#DBEAFE;color:#1D4ED8;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
-            <i data-lucide="mail" width="32" height="32"></i>
-        </div>
-        <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:8px">¡Revisa tu email!</h2>
-        <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
-            Hemos enviado un enlace de verificación a<br/>
-            <strong style="color:var(--text-primary)">${email}</strong>
-        </p>
-        <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:24px">Abre el correo y haz clic en el enlace para activar tu cuenta. Después vuelve aquí e inicia sesión.</p>
-        <button class="btn btn-primary btn-lg w-full" style="justify-content:center" onclick="goToView('login')">
-            <i data-lucide="log-in" width="18" height="18"></i> Iniciar sesión
-        </button>
-        <p style="margin-top:12px;font-size:0.8rem;color:var(--text-muted)">¿No te llegó? Revisa la carpeta de spam.</p>
-    `;
-    confirmView.classList.add('active');
-    if (window.lucide) window.lucide.createIcons();
-}
-
-// Muestra un toast/notificación flotante
-function showToast(message, type = 'info') {
-    // Remover toast anterior si existe
-    const existing = document.getElementById('a360-toast');
-    if (existing) existing.remove();
-
-    const colors = {
-        error: { bg: '#FEE2E2', border: '#FCA5A5', text: '#991B1B', icon: 'alert-circle' },
-        warning: { bg: '#FEF3C7', border: '#FCD34D', text: '#92400E', icon: 'alert-triangle' },
-        success: { bg: '#D1FAE5', border: '#6EE7B7', text: '#065F46', icon: 'check-circle' },
-        info: { bg: '#DBEAFE', border: '#93C5FD', text: '#1E40AF', icon: 'info' }
-    };
-    const c = colors[type] || colors.info;
-
-    const toast = document.createElement('div');
-    toast.id = 'a360-toast';
-    toast.style.cssText = `
-        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-        background: ${c.bg}; border: 1px solid ${c.border}; color: ${c.text};
-        padding: 12px 20px; border-radius: 12px; font-size: 0.875rem; font-weight: 500;
-        display: flex; align-items: center; gap: 8px; z-index: 9999;
-        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
-        max-width: 400px; text-align: center;
-        animation: slideUp 0.3s ease;
-    `;
-    toast.innerHTML = `<i data-lucide="${c.icon}" width="18" height="18"></i> ${message}`;
-    document.body.appendChild(toast);
-    if (window.lucide) window.lucide.createIcons();
-
-    // Auto-remove after 5s
-    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
-}
-
-function mockRegisterUser(email, password) {
-    const state = getState();
-    state.user = { email, name: email.split('@')[0] };
-    saveState(state);
-    goToView('setup');
-    return true;
-}
-
 async function setHogar(name) {
-    const state = getState();
-    state.hogar = name;
-    saveState(state);
+  authToast('Hogar "'+name+'" creado ✓','ok');
+  setTimeout(()=>{
+    if(typeof goToView==='function') goToView('aha');
+    else window.location.href='dashboard.html';
+  }, 800);
+}
+async function saveProfile(){}
+async function saveHogar(){ showToast('Hogar guardado ✓','ok'); }
+async function markAllRead(){ showToast('Todo marcado como leído','ok'); }
+async function addService(){ showToast('Próximamente: añadir servicio personalizado',''); }
 
-    // Save to DB
-    if (supabase && state.user && state.user.id) {
-        const { error } = await supabase.from('hogares').insert([
-            { user_id: state.user.id, nombre: name }
-        ]);
-        if (error) console.error("Error saving hogar to DB", error);
-    }
+// ════════════════════════════════════════════
+//  RENDER FUNCTIONS
+// ════════════════════════════════════════════
 
-    goToView('aha');
+// ── INICIO ────────────────────────────────
+function renderInicio() {
+  const hour = new Date().getHours();
+  const greeting = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
+  const wt = document.getElementById('welcomeTitle');
+  if(wt) wt.textContent = greeting + ' 👋';
+
+  // AI INSIGHTS
+  const insights = [
+    { sev:'urgent',  icon:'🔴', title:'Promo Orange caduca en 18 días', body:'Sin acción subirás de €49,99 a €79,99. Cambiando a Digi ahorras €276/año.', cta:'Ver alternativas', fn:"navigate('comparador')" },
+    { sev:'warning', icon:'🟡', title:'Factura de luz subió un 22%',    body:'Endesa cobró €66,23 vs €54,30 el mes anterior. La IA encontró 3 causas.', cta:'Ver desglose', fn:'openBill(1)' },
+    { sev:'success', icon:'🟢', title:'Tu gas puede bajar €7,40/mes',   body:'Saliendo del TUR a tarifa libre con Endesa Gas ahorras €88/año.', cta:'Comparar gas', fn:"setCompTab('gas',null);navigate('comparador')" },
+  ];
+  const ic = document.getElementById('insightsContainer');
+  if(ic) ic.innerHTML = insights.map(i=>`
+    <div class="insight-card ${i.sev}" style="animation:fadeIn 0.4s ease both">
+      <span style="font-size:1.2rem;flex-shrink:0">${i.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:3px">${i.title}</div>
+        <div style="font-size:.8rem;color:var(--text-secondary)">${i.body}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="${i.fn}">${i.cta} →</button>
+    </div>`).join('');
+
+  // STATS
+  const totalSaving = MOCK_BILLS.reduce((s,b)=>s+b.saving,0);
+  const totalSpend  = MOCK_BILLS.reduce((s,b)=>s+b.amount,0);
+  const statsData = [
+    { label:'Ahorro potencial anual', value:totalSaving, prefix:'€', color:'var(--color-accent)', icon:'💰' },
+    { label:'Gasto mensual actual',   value:totalSpend,  prefix:'€', color:'var(--text-primary)', icon:'📊' },
+    { label:'Facturas analizadas',    value:MOCK_BILLS.length, prefix:'', color:'var(--color-primary)', icon:'📄' },
+    { label:'Score eficiencia',       value:62, prefix:'', suffix:'/100', color:'var(--color-teal)', icon:'🎯' },
+  ];
+  const sg = document.getElementById('statsGrid');
+  if(sg) sg.innerHTML = statsData.map(s=>`
+    <div class="stat-card">
+      <div class="stat-label">${s.icon} ${s.label}</div>
+      <div class="stat-value" style="color:${s.color}" id="sv_${s.label.replace(/ /g,'_')}">${s.prefix}0${s.suffix||''}</div>
+    </div>`).join('');
+  statsData.forEach(s=>{
+    const el = document.getElementById('sv_'+s.label.replace(/ /g,'_'));
+    animateCounter(el, s.value, 1200, s.prefix, s.suffix||'');
+  });
+
+  // QUICK WINS
+  const qw = document.getElementById('quickWinsContainer');
+  if(qw) qw.innerHTML = MOCK_QUICKWINS.map(w=>`
+    <div class="quick-win" onclick="${w.fn||''}">
+      <div style="flex:1;min-width:0">
+        <div class="quick-win-title">${w.title}</div>
+        <div class="quick-win-saving">${w.saving} · ${w.effort}</div>
+      </div>
+      <span class="quick-win-badge">${w.saving}</span>
+      <span class="quick-win-arrow">→</span>
+    </div>`).join('');
+
+  // VERTICAL STATUS
+  const vs = document.getElementById('verticalesStatus');
+  const statusMap = { ok:'✅', warning:'⚠️', urgent:'🔴', none:'⬜' };
+  const colorMap  = { ok:'var(--color-accent)', warning:'var(--color-warning)', urgent:'var(--color-danger)', none:'var(--text-muted)' };
+  if(vs) vs.innerHTML = MOCK_VERTICAL_STATUS.map(v=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg)">
+      <span style="font-size:1.2rem">${v.emoji}</span>
+      <div style="flex:1"><div style="font-weight:600;font-size:.85rem">${v.name}</div>
+        <div style="font-size:.75rem;color:${colorMap[v.status]}">${v.label}</div></div>
+      <span>${statusMap[v.status]}</span>
+    </div>`).join('');
 }
 
-async function logoutUser() {
-    if (supabase) {
-        await supabase.auth.signOut();
-    }
-    const state = getState();
-    state.user = null;
-    state.hogar = null;
-    saveState(state);
-    window.location.href = 'index.html';
+// ── BANDEJA ───────────────────────────────
+let filteredBills = [...MOCK_BILLS];
+let activeFilter = 'all';
+
+function renderBandeja() { filterBills(); }
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  filterBills();
+}
+function sortBills(by) {
+  const sorted = [...filteredBills];
+  if(by==='amount') sorted.sort((a,b)=>b.amount-a.amount);
+  if(by==='saving') sorted.sort((a,b)=>b.saving-a.saving);
+  if(by==='date')   sorted.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  renderBillsList(sorted);
+}
+function filterBills() {
+  const q = (document.getElementById('searchInput')?.value||'').toLowerCase();
+  filteredBills = MOCK_BILLS.filter(b=>{
+    const matchFilter = activeFilter==='all' || b.vertical===activeFilter;
+    const matchSearch = !q || b.name.toLowerCase().includes(q);
+    return matchFilter && matchSearch;
+  });
+  renderBillsList(filteredBills);
+}
+function renderBillsList(bills) {
+  const el = document.getElementById('billsList');
+  if(!el) return;
+  if(!bills.length) { el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--text-muted)">No hay facturas con esos filtros</div>`; return; }
+  el.innerHTML = bills.map(b=>`
+    <div class="bill-item animate-fade" onclick="openBill(${b.id})">
+      <div class="bill-icon" style="background:var(--color-${b.vertical}-bg)">${b.emoji}</div>
+      <div class="bill-info">
+        <div class="bill-name">${b.name}</div>
+        <div class="bill-sub">${new Date(b.date).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})} · ${b.status==='alerta'?'<span style="color:var(--color-warning)">⚠ Atención</span>':'<span style="color:var(--color-accent)">✓ Analizado</span>'}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="bill-amount">${fmt(b.amount)}</div>
+        ${b.saving>0?`<div class="bill-saving">Ahorra ${fmt(b.saving)}/año</div>`:''}
+      </div>
+      <span style="color:var(--text-muted);font-size:.8rem;margin-left:4px">›</span>
+    </div>`).join('');
 }
 
-function getIconForVertical(v) {
-    if (v.includes('Luz')) return { icon: '⚡', bg: '#FEF3C7', col: '#D97706' };
-    if (v.includes('Agua')) return { icon: '💧', bg: '#DBEAFE', col: '#1E40AF' };
-    if (v.includes('Gas')) return { icon: '🔥', bg: '#FEE2E2', col: '#DC2626' };
-    if (v.includes('Telecos')) return { icon: '📱', bg: '#EDE9FE', col: '#6D28D9' };
-    return { icon: '📄', bg: '#F3F4F6', col: '#4B5563' };
+// Upload handlers
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file) processUpload(file);
+}
+function handleFileSelect(input) {
+  if(input.files[0]) processUpload(input.files[0]);
+}
+function processUpload(file) {
+  const zone = document.getElementById('uploadZone');
+  const status = document.getElementById('uploadStatus');
+  const steps = ['Leyendo documento...','Extrayendo datos con IA...','Identificando conceptos...','Calculando ahorro potencial...','¡Análisis completo! ✓'];
+  let i = 0;
+  status.innerHTML = `<div style="font-size:1.5rem;margin-bottom:8px;animation:spin 1s linear infinite">⚙️</div><div style="font-weight:700;color:var(--color-primary)" id="uploadStep">${steps[0]}</div>`;
+  const iv = setInterval(()=>{
+    i++;
+    const stepEl = document.getElementById('uploadStep');
+    if(stepEl) stepEl.textContent = steps[Math.min(i,steps.length-1)];
+    if(i>=steps.length-1){
+      clearInterval(iv);
+      setTimeout(()=>{
+        showToast('Factura analizada por IA ✓','ok');
+        status.innerHTML = `<div style="font-size:2rem;margin-bottom:8px">📄</div><div style="font-weight:700;color:var(--text-primary)">Arrastra tu factura aquí</div><div style="font-size:.8rem;color:var(--text-muted);margin-top:4px">PDF, foto o imagen · La IA la analiza en segundos</div>`;
+      },800);
+    }
+  },900);
 }
 
-// UI Renderers for Dashboard
-async function renderDashboard() {
-    let state = getState();
-    if (!state.user) {
-        window.location.href = 'auth.html?mode=login';
-        return;
+// ── DETALLE ───────────────────────────────
+function renderDetalle() {
+  if(!currentBill) return;
+  const b = currentBill;
+  const title = document.getElementById('detallePageTitle');
+  if(title) title.textContent = b.name;
+  const sa = document.getElementById('detalleSavingAnnual');
+  if(sa) { sa.textContent='€0'; animateCounter(sa,b.saving,1000,'€',''); }
+
+  // Header
+  const hdr = document.getElementById('detalleBillHeader');
+  if(hdr) hdr.innerHTML=`
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="bill-icon" style="background:var(--color-${b.vertical}-bg);width:52px;height:52px;border-radius:14px;font-size:1.5rem">${b.emoji}</div>
+      <div><div style="font-weight:800;font-size:1.1rem">${b.name}</div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-top:3px">${new Date(b.date).toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'})}</div></div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="font-size:1.75rem;font-weight:900;font-family:var(--font-heading)">${fmt(b.amount)}</div>
+        <span class="badge badge-${b.vertical}">${b.vertical}</span>
+      </div>
+    </div>`;
+
+  // Line items
+  const ll = document.getElementById('detalleLines');
+  const confColor = {high:'var(--color-accent)',medium:'var(--color-warning)',low:'var(--color-danger)'};
+  const confLabel = {high:'Alta',medium:'Media',low:'Baja'};
+  if(ll) ll.innerHTML = b.lines.map(l=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg)">
+      <div style="flex:1"><div style="font-weight:500;font-size:.875rem">${l.name}</div>
+        ${l.info?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">${l.info}</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:var(--font-mono);font-weight:700;color:${l.amount<0?'var(--color-accent)':'var(--text-primary)'}">${l.amount<0?'−':''}€${Math.abs(l.amount).toFixed(2)}</div>
+        <div style="font-size:.7rem;color:${confColor[l.conf]}">IA ${confLabel[l.conf]}</div>
+      </div>
+    </div>`).join('');
+
+  // Recommendations
+  const dr = document.getElementById('detalleRecs');
+  if(dr) dr.innerHTML = b.recs.map((r,i)=>`
+    <div style="padding:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);transition:var(--transition-base)" class="card-interactive" onclick="completeRec(this,'${r.title}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <div style="font-weight:700;font-size:.85rem">${r.title}</div>
+        <span style="color:var(--color-accent);font-weight:800;font-size:.85rem;white-space:nowrap">€${r.saving}/año</span>
+      </div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px">${r.info}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:.7rem;background:var(--bg-surface-3);padding:2px 8px;border-radius:99px;color:var(--text-muted)">Esfuerzo: ${r.effort}</span>
+        <button class="btn btn-accent btn-sm" style="font-size:.7rem;padding:4px 10px">Aplicar →</button>
+      </div>
+    </div>`).join('');
+
+  // Chat suggestions
+  const cs = document.getElementById('chatSuggestions');
+  if(cs) cs.innerHTML = [
+    '¿Por qué subió la factura?',
+    '¿Qué tarifa me conviene?',
+    '¿Cuándo vence mi promo?',
+    '¿Puedo bajar la potencia?'
+  ].map(q=>`<button class="btn btn-secondary btn-sm" onclick="askChat('${q}')">${q}</button>`).join('');
+
+  if(typeof lucide!=='undefined') setTimeout(()=>lucide.createIcons(),50);
+}
+
+function completeRec(el, title) {
+  el.style.opacity='0.5';
+  el.style.textDecoration='line-through';
+  showToast('Recomendación marcada ✓','ok');
+  launchConfetti();
+}
+
+// ── CHAT ──────────────────────────────────
+const AI_RESPONSES = {
+  'subió': 'Esta factura subió principalmente por el incremento en el precio de la energía en hora punta (+22% vs. el mes anterior). Tu consumo en P1 aumentó de 180 a 234 kWh, posiblemente por el frío. 💡 Solución: mueve lavadora y lavavajillas a la franja de 22h-8h.',
+  'tarifa': 'Basándonos en tu perfil (234 kWh/mes, mayoritariamente en P1), la tarifa indexada PVPC-plus te beneficiaría en verano pero podría salirte cara en invierno. Te recomiendo Holaluz Clara con precio fijo para tu nivel de consumo.',
+  'promo': 'Tu descuento de fidelización de Orange de €5/mes caduca el **04/04/2026**. Si no actúas en 18 días, tu factura sube a €79,99/mes. Mejor alternativa: Digi Fibra 1Gb + 50GB por €20/mes.',
+  'potencia': 'Tu potencia contratada es 3.45 kW. Según los datos de tu contador, nunca has superado 2.8 kW en el último año. Podrías bajar a 2.3 kW y ahorrar €45/año sin riesgo de corte.',
+  'default': 'Excelente pregunta. Basándome en los datos de tu factura ({context}), aquí está mi análisis: este concepto tiene un potencial de optimización. ¿Te gustaría que te detalle las opciones disponibles?'
+};
+
+function askChat(question) {
+  const input = document.getElementById('chatInput');
+  if(input) { input.value = question; sendChat(); }
+}
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msgs  = document.getElementById('chatMessages');
+  if(!input || !msgs || !input.value.trim()) return;
+  const q = input.value.trim();
+  input.value = '';
+  msgs.innerHTML += `<div class="chat-bubble user">${q}</div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  setTimeout(()=>{
+    const lq = q.toLowerCase();
+    let ans = AI_RESPONSES['default'];
+    for(const [k,v] of Object.entries(AI_RESPONSES)) {
+      if(k!=='default' && lq.includes(k)) { ans=v; break; }
     }
+    if(currentBill) ans = ans.replace('{context}', currentBill.chatContext);
+    msgs.innerHTML += `<div class="chat-bubble ai">${ans}</div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+  }, 800);
+}
 
-    // Try to load data from DB if available
-    if (supabase) {
-        try {
-            // Load Hogar
-            const { data: hogarData } = await supabase.from('hogares').select('nombre').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1);
-            if (hogarData && hogarData.length > 0) {
-                state.hogar = hogarData[0].nombre;
-            }
+// ── COMPARADOR ────────────────────────────
+function renderComparador() { renderCompTab(currentCompTab); }
 
-            // Load Facturas
-            const { data: facturasData } = await supabase.from('facturas').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false });
-            if (facturasData && facturasData.length > 0) {
-                // Remove mocks if DB has real data
-                state.invoices = facturasData.map(f => ({
-                    id: f.id,
-                    vertical: f.vertical,
-                    provider: f.provider,
-                    date: f.period_date,
-                    amount: f.amount,
-                    consumption: f.consumption,
-                    status: f.status,
-                    saving: f.saving,
-                    timestamp: new Date(f.created_at).getTime()
-                }));
-            }
-            saveState(state);
-        } catch (e) { console.warn("Could not fetch from DB, using local", e); }
-    }
+function setCompTab(tab, btn) {
+  currentCompTab = tab;
+  document.querySelectorAll('#compTabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  else { const found=document.querySelector(`#compTabs [data-tab="${tab}"]`); if(found) found.classList.add('active'); }
+  renderCompTab(tab);
+}
 
-    // Update header info
-    const hName = document.getElementById('headerHogarName');
-    if (hName) hName.innerText = state.hogar || 'Casa García'; // Default fallback
+function renderCompTab(tab) {
+  const filters = document.getElementById('compFilters');
+  const results = document.getElementById('compResults');
+  const insight = document.getElementById('compInsight');
+  if(!filters||!results) return;
 
-    const hUser = document.getElementById('sidebarUserName');
-    if (hUser) hUser.innerText = state.user.name;
+  const insightTexts = {
+    luz: '💡 <strong>IA recomienda:</strong> Según tu consumo de 234 kWh/mes, la tarifa indexada te ahorraría €14/mes en verano, pero en invierno pagas más. Si prefieres estabilidad, elige Holaluz Clara.',
+    gas: '🔥 <strong>IA recomienda:</strong> Estás en TUR (0,130 €/kWh). La alternativa libre más barata es un 27% más económica. Sin permanencia.',
+    telecos: '📱 <strong>IA recomienda:</strong> Tus 30GB actuales son suficientes según tu uso. Con Digi consigues 50GB + fibra 1Gb por €30 menos al mes.',
+    combustible: '⛽ <strong>IA recomienda:</strong> La gasolinera Repsol en Gran Vía está a 0,3km y es €0,05/l más barata. En 50L de repostaje: €2,50 ahorrados.',
+  };
+  if(insight) insight.innerHTML = `<div style="display:flex;gap:10px;align-items:flex-start"><span class="badge-ai-live">IA</span><div style="font-size:.875rem">${insightTexts[tab]||''}</div></div>`;
 
-    // If no invoices loaded (e.g. new user or stale state), use default demo data
-    if (!state.invoices || state.invoices.length === 0) {
-        state.invoices = JSON.parse(JSON.stringify(DEFAULT_STATE.invoices));
-    }
+  // Filters panel
+  if(tab==='luz') filters.innerHTML=`
+    <div class="section-title">⚡ Parámetros de consumo</div>
+    <div class="slider-wrap"><div class="slider-label"><span>Consumo mensual</span><span id="luzKwhLabel">${compConsumption.luz} kWh</span></div>
+      <input type="range" class="range-input" min="50" max="600" value="${compConsumption.luz}" oninput="compConsumption.luz=+this.value;document.getElementById('luzKwhLabel').textContent=this.value+' kWh';recalcComp()"></div>
+    <div class="slider-wrap"><div class="slider-label"><span>Potencia contratada</span><span id="luzPotLabel">3,45 kW</span></div>
+      <input type="range" class="range-input" min="1" max="15" step=".1" value="3.45" oninput="document.getElementById('luzPotLabel').textContent=parseFloat(this.value).toFixed(2)+' kW';recalcComp()"></div>
+    <div style="margin-top:12px;padding:12px;background:var(--color-primary-50);border-radius:var(--radius-lg);font-size:.8rem"><strong style="color:var(--color-primary)">📋 Datos de tu última factura</strong><br/>234 kWh · Tarifa 2.0TD · Potencia 3.45kW</div>`;
+  else if(tab==='gas') filters.innerHTML=`
+    <div class="section-title">🔥 Parámetros de consumo</div>
+    <div class="slider-wrap"><div class="slider-label"><span>Consumo mensual</span><span id="gasLabel">${compConsumption.gas} kWh</span></div>
+      <input type="range" class="range-input" min="20" max="500" value="${compConsumption.gas}" oninput="compConsumption.gas=+this.value;document.getElementById('gasLabel').textContent=this.value+' kWh';recalcComp()"></div>
+    <div style="margin-top:12px;padding:12px;background:var(--color-gas-bg);border-radius:var(--radius-lg);font-size:.8rem"><strong style="color:var(--color-gas)">📋 Tarifa actual: TUR</strong><br/>148 kWh · 0,130 €/kWh</div>`;
+  else if(tab==='telecos') filters.innerHTML=`
+    <div class="section-title">📱 Tu uso actual</div>
+    <div class="slider-wrap"><div class="slider-label"><span>GB móvil al mes</span><span id="gbLabel">${compConsumption.telecos} GB</span></div>
+      <input type="range" class="range-input" min="5" max="100" value="${compConsumption.telecos}" oninput="compConsumption.telecos=+this.value;document.getElementById('gbLabel').textContent=this.value+' GB';recalcComp()"></div>
+    <div class="input-group mt-3"><label class="input-label">¿Quieres fibra incluida?</label>
+      <select class="input" onchange="recalcComp()"><option>Sí, con fibra</option><option>No, solo móvil</option></select></div>
+    <div style="margin-top:12px;padding:12px;background:var(--color-telecos-bg);border-radius:var(--radius-lg);font-size:.8rem"><strong style="color:var(--color-telecos)">⚠️ Promo caduca 04/04/2026</strong><br/>Actúa antes de que suba a €79,99</div>`;
+  else filters.innerHTML=`
+    <div class="section-title">⛽ Tu vehículo</div>
+    <div class="input-group"><label class="input-label">Tipo de combustible</label>
+      <select class="input"><option>Gasolina 95</option><option>Diésel</option><option>Gasolina 98</option></select></div>
+    <div class="input-group mt-3"><label class="input-label">Código postal</label><input class="input" placeholder="28001" value="28001" onchange="recalcComp()"/></div>
+    <div style="margin-top:12px;padding:12px;background:var(--color-combustible-bg);border-radius:var(--radius-lg);font-size:.8rem;color:var(--color-combustible)">📍 Mostrando gasolineras en radio 5km</div>`;
 
-    // Render Invoices List
-    const listContainer = document.getElementById('invoicesList');
-    if (listContainer && state.invoices) {
-        listContainer.innerHTML = '';
+  recalcComp();
+}
 
-        // Calculate total
-        let totalCents = 0;
-        let totalSavings = 0;
-
-        state.invoices.sort((a, b) => b.timestamp - a.timestamp).forEach(inv => {
-            totalCents += Math.round(inv.amount * 100);
-            totalSavings += inv.saving || 0;
-
-            const style = getIconForVertical(inv.vertical);
-            let savingBadge = inv.saving > 0
-                ? `<span class="text-accent font-semibold"><i data-lucide="zap" width="12" style="display:inline;vertical-align:-2px"></i> Ahorro: €${inv.saving}/año</span>`
-                : `<span class="text-warning font-semibold"><i data-lucide="clock" width="12" style="display:inline;vertical-align:-2px"></i> ${inv.status}</span>`;
-
-            let statusBadge = inv.saving > 0
-                ? `<span class="badge badge-green">Revisada OK</span>`
-                : `<span class="badge badge-amber">Alerta Promo</span>`;
-
-            if (inv.status === 'Analizando...') {
-                statusBadge = `<span class="badge badge-blue"><i data-lucide="loader" class="animate-spin" width="10"></i> Analizando...</span>`;
-                savingBadge = `<span class="text-muted">Procesando documento...</span>`;
-            }
-
-            const el = document.createElement('div');
-            el.className = 'doc-item';
-
-            // Navigate to fixed detail views
-            el.onclick = () => { location.hash = '#factura/' + inv.id; };
-
-            el.innerHTML = `
-        <div class="flex items-center gap-4">
-          <div class="doc-icon" style="background:${style.bg};color:${style.col}">${style.icon}</div>
-          <div class="doc-main">
-            <div class="doc-title">${inv.vertical} ${inv.provider} ${statusBadge} <span class="badge badge-ai">✨ IA</span></div>
-            <div class="doc-meta">
-              <span>${inv.date}</span> • 
-              ${savingBadge}
-            </div>
+function recalcComp() {
+  const results = document.getElementById('compResults');
+  if(!results) return;
+  const data = MOCK_COMPARATOR[currentCompTab] || [];
+  results.innerHTML = data.map((t,i)=>{
+    const isFuel = currentCompTab==='combustible';
+    const priceLabel = isFuel ? t.price.toFixed(3)+' €/l' : fmt(t.price)+'/mes';
+    const savingLabel = t.saving>0 ? (isFuel?'-'+t.saving.toFixed(3)+' €/l por litro':'Ahorras '+fmt(t.saving)+'/mes = '+fmt(t.saving*12)+'/año') : 'Tu tarifa actual';
+    return `
+    <div class="tariff-card ${t.recommended?'recommended':''}" style="animation:fadeIn 0.3s ${i*0.07}s ease both">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+            <span style="font-weight:800;font-size:.95rem">${t.name}</span>
+            ${t.badge?`<span class="badge ${t.recommended?'badge-green':'badge-gray'}">${t.badge}</span>`:''}
+            ${t.affiliate?`<span style="font-size:.65rem;color:var(--text-muted);border:1px solid var(--border);padding:1px 6px;border-radius:99px">Colaboración verificada</span>`:''}
           </div>
+          <div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:8px">${t.details}</div>
+          <div style="font-size:.8rem;color:var(--color-accent);font-weight:700">${savingLabel}</div>
         </div>
-        <div class="doc-right">
-          <div style="text-align:right">
-            <div class="doc-amount">€${inv.amount.toFixed(2).replace('.', ',')}</div>
-            <div class="text-xs text-muted">${inv.consumption}</div>
-          </div>
-          <i data-lucide="chevron-right" width="20" class="text-muted"></i>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="tariff-price">${priceLabel}</div>
+          ${t.recommended?`<button class="btn btn-accent btn-sm mt-2">Cambiar →</button>`:t.saving===0?'':'<button class="btn btn-secondary btn-sm mt-2">Ver oferta</button>'}
         </div>
-      `;
-            // Append invoice item
-            listContainer.appendChild(el);
-        });
-
-        // Update stats
-        const elGasto = document.getElementById('statGastoMes');
-        if (elGasto) {
-            // Use local format for numbers (e.g. 1.025,99)
-            const parts = (totalCents / 100).toFixed(2).split('.');
-            elGasto.innerHTML = `€${parseInt(parts[0]).toLocaleString('es-ES')}<span style="font-size:1rem;color:var(--text-muted)">,${parts[1]}</span>`;
-        }
-
-        const elAhorro = document.getElementById('statAhorroPotencial');
-        if (elAhorro) elAhorro.innerHTML = `€${totalSavings.toLocaleString('es-ES')}`;
-
-        // Render dynamic CSS pie chart if the element exists
-        const chartContainer = document.querySelector('.chart-container');
-        if (chartContainer && totalCents > 0) {
-            // Group by vertical
-            const totalsByVertical = {};
-            state.invoices.forEach(inv => {
-                const amount = inv.amount;
-                // Group Insurance together
-                let v = inv.vertical.includes('Seguro') ? 'Seguros' : inv.vertical;
-                totalsByVertical[v] = (totalsByVertical[v] || 0) + amount;
-            });
-
-            // Create conic gradient string for pie chart
-            const colors = {
-                'Luz': '#F59E0B',      // Amber
-                'Telecos': '#8B5CF6',  // Violet
-                'Gas': '#EF4444',      // Red
-                'Seguros': '#10B981',  // Emerald
-                'Combustible': '#6B7280' // Gray
-            };
-
-            let gradientStr = '';
-            let currentPct = 0;
-            const totalEuros = totalCents / 100;
-
-            const chartLegend = document.createElement('div');
-            chartLegend.className = 'flex-col gap-2 mt-4 text-sm w-full';
-
-            const sortedVerticals = Object.keys(totalsByVertical).sort((a,b) => totalsByVertical[b] - totalsByVertical[a]);
-
-            sortedVerticals.forEach(v => {
-                const amount = totalsByVertical[v];
-                const pct = (amount / totalEuros) * 100;
-                const col = colors[v] || '#CBD5E1';
-                
-                gradientStr += `${col} ${currentPct}% ${currentPct + pct}%, `;
-                currentPct += pct;
-
-                // Add to legend
-                chartLegend.innerHTML += `
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2">
-                            <div style="width:12px;height:12px;border-radius:3px;background:${col}"></div>
-                            <span>${v}</span>
-                        </div>
-                        <div class="font-semibold">€${amount.toFixed(2).replace('.',',')}</div>
-                    </div>
-                `;
-            });
-
-            gradientStr = gradientStr.slice(0, -2); // remove last comma
-
-            chartContainer.innerHTML = `
-                <div style="width:160px;height:160px;border-radius:50%;background:conic-gradient(${gradientStr});margin:0 auto;position:relative;box-shadow:inset 0 0 0 4px var(--bg-surface), 0 4px 6px -1px rgba(0,0,0,0.1)">
-                  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:110px;height:110px;background:var(--bg-surface);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;box-shadow:0 0 10px rgba(0,0,0,0.05)">
-                     <div class="text-xs text-muted font-semibold uppercase tracking-wide">Total</div>
-                     <div class="font-bold text-xl">€${parseInt(totalEuros).toLocaleString('es-ES')}</div>
-                  </div>
-                </div>
-            `;
-            chartContainer.appendChild(chartLegend);
-        }
-
-    }
-
-    if (window.lucide) window.lucide.createIcons();
+      </div>
+    </div>`}).join('');
+  if(typeof lucide!=='undefined') setTimeout(()=>lucide.createIcons(),30);
 }
 
-// UPLOAD SIMULATOR
-function handleFileUpload(fileInputId) {
-    const input = document.getElementById(fileInputId);
-    if (!input.files || input.files.length === 0) return;
+// ── SCORE ─────────────────────────────────
+function renderScore() {
+  const scoreVal = 62;
+  const ring = document.getElementById('scoreRingFill');
+  const num  = document.getElementById('scoreNumber');
+  const lbl  = document.getElementById('scoreLabel');
+  const adv  = document.getElementById('scoreAdvice');
 
-    const file = input.files[0];
-    const state = getState();
+  if(ring) {
+    const circumference = 2*Math.PI*76; // r=76
+    setTimeout(()=>{
+      ring.style.strokeDasharray = circumference;
+      ring.style.strokeDashoffset = circumference;
+      ring.style.stroke = 'url(#scoreGrad)';
+      // Insert gradient def
+      const svg = ring.closest('svg');
+      if(svg && !svg.querySelector('#scoreGrad')) {
+        svg.insertAdjacentHTML('afterbegin',`<defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1641B0"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs>`);
+      }
+      setTimeout(()=>{ ring.style.strokeDashoffset = circumference*(1-scoreVal/100); },100);
+    },200);
+  }
+  if(num) animateCounter(num, scoreVal, 1400);
+  if(lbl) lbl.textContent = scoreVal>=80?'Excelente ✨':scoreVal>=60?'Bueno 👍':scoreVal>=40?'Mejorable ⚠️':'Atención 🔴';
+  if(adv) adv.textContent = 'Tu score mejoraría +25 puntos siguiendo la recomendación de Telecos.';
 
-    // Close modal and show upload UI
-    closeModals();
-    document.getElementById('uploadProgressOverlay').classList.add('open');
+  // BREAKDOWN
+  const breakdown = [
+    {vertical:'⚡ Luz',     score:85, label:'Optimizada'},
+    {vertical:'🔥 Gas',     score:45, label:'Mejorable'},
+    {vertical:'📱 Telecos', score:30, label:'⚠ Urgente'},
+    {vertical:'⛽ Combustible',score:70,label:'Aceptable'},
+    {vertical:'🛡️ Seguros', score:0,  label:'Sin analizar'},
+  ];
+  const bd = document.getElementById('scoreBreakdown');
+  if(bd) bd.innerHTML = `
+    <div class="section-title">Desglose por vertical</div>
+    <div class="flex-col gap-4">
+    ${breakdown.map(b=>`
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;font-weight:600;margin-bottom:6px">
+          <span>${b.vertical}</span>
+          <span style="color:${b.score>=70?'var(--color-accent)':b.score>=40?'var(--color-warning)':'var(--color-danger)'}">${b.score>0?b.score+'/100':b.label}</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-fill ${b.score>=70?'progress-accent':b.score>=40?'progress-warning':'progress-danger'}" id="bar_${b.vertical.replace(/[^a-z]/gi,'')}" style="width:0%"></div></div>
+      </div>`).join('')}
+    </div>`;
+  breakdown.forEach(b=>{
+    setTimeout(()=>{
+      const el = document.getElementById('bar_'+b.vertical.replace(/[^a-z]/gi,''));
+      if(el) el.style.width = b.score+'%';
+    },300);
+  });
 
-    const steps = document.querySelectorAll('.upload-step');
-    steps.forEach(s => s.classList.remove('active'));
-    steps[0].classList.add('active'); // OCR step
-
-    // Simulate process
-    setTimeout(() => {
-        steps[0].classList.remove('active');
-        steps[0].classList.add('done');
-        steps[1].classList.add('active'); // RAG LLM step
-
-        setTimeout(() => {
-            steps[1].classList.remove('active');
-            steps[1].classList.add('done');
-            steps[2].classList.add('active'); // Comparador step
-
-            setTimeout(async () => {
-                // Done
-                document.getElementById('uploadProgressOverlay').classList.remove('open');
-
-                // Infer something basic from file name
-                let vertical = 'Luz';
-                let prov = 'Iberdrola';
-                let cons = '200 kWh';
-                let amount = Math.round((Math.random() * 80 + 20) * 100) / 100;
-                let saving = Math.round(Math.random() * 50);
-
-                const fname = file.name.toLowerCase();
-                if (fname.includes('agua')) { vertical = 'Agua'; prov = 'Canal YII'; cons = '12 m3'; amount = 25.50; saving = 0; }
-                if (fname.includes('gas')) { vertical = 'Gas'; prov = 'Naturgy'; cons = '1.050 kWh'; amount = 85.20; saving = 25; }
-                if (fname.includes('tele')) { vertical = 'Telecos'; prov = 'Vodafone'; cons = 'Fibra + Móvil'; amount = 65.00; saving = 120; }
-                if (fname.includes('seguro')) { vertical = 'Seguro Hogar'; prov = 'Ocaso'; cons = 'Anual'; amount = 210.00; saving = 45; }
-
-                const newInv = {
-                    id: Date.now().toString(),
-                    vertical: vertical,
-                    provider: prov,
-                    date: 'Nuevo Documento',
-                    amount: amount,
-                    consumption: cons,
-                    status: 'Revisada OK',
-                    saving: saving,
-                    timestamp: Date.now()
-                };
-
-                // Guardar en DB si aplica
-                if (supabase && state.user && state.user.id) {
-                    const { data, error } = await supabase.from('facturas').insert([{
-                        user_id: state.user.id,
-                        vertical: newInv.vertical,
-                        provider: newInv.provider,
-                        period_date: newInv.date,
-                        amount: newInv.amount,
-                        consumption: newInv.consumption,
-                        status: newInv.status,
-                        saving: newInv.saving
-                    }]).select();
-                    if (!error && data) {
-                        newInv.id = data[0].id; // Usar id real
-                    }
-                }
-
-                state.invoices.push(newInv);
-                saveState(state);
-
-                // Re-render
-                if (window.location.href.includes('dashboard')) {
-                    renderDashboard();
-                }
-
-            }, 1500);
-        }, 2000);
-    }, 1500);
+  // ACHIEVEMENTS
+  const ag = document.getElementById('achievementsGrid');
+  if(ag) ag.innerHTML = ACHIEVEMENTS.map(a=>`
+    <div class="achievement ${a.unlocked?'unlocked':'achievement-locked'}">
+      <div class="achievement-icon">${a.emoji}</div>
+      <div><div style="font-weight:700;font-size:.875rem">${a.title}</div>
+        <div style="font-size:.75rem;color:var(--text-secondary);margin-top:2px">${a.desc}</div>
+        ${a.unlocked?`<div style="font-size:.7rem;color:#D97706;font-weight:700;margin-top:4px">🏆 Desbloqueado</div>`:`<div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">🔒 Bloqueado</div>`}</div>
+    </div>`).join('');
 }
 
-// Initialize on load
-document.addEventListener('DOMContentLoaded', async () => {
-    // Check real Supabase session if available
-    if (supabase) {
-        const { data: { session } } = await supabase.auth.getSession();
-        const state = getState();
+// ── ALERTAS ───────────────────────────────
+function renderAlertas() {
+  const groups = {urgent:'alertasUrgenteList', warning:'alertasImportanteList', info:'alertasInfoList'};
+  Object.values(groups).forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=''; });
+  MOCK_ALERTS.forEach(a=>{
+    const el = document.getElementById(groups[a.sev]);
+    if(!el) return;
+    el.innerHTML += `
+      <div class="alert-item ${a.sev}" style="animation:fadeIn 0.4s ease both">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.9rem;margin-bottom:4px">${a.title}</div>
+          <div style="font-size:.8rem;color:var(--text-secondary);line-height:1.5">${a.body}</div>
+          ${a.daysLeft!==undefined?`<div style="margin-top:6px;font-size:.75rem;font-weight:700;color:var(--color-danger)">⏱ ${a.daysLeft} días restantes</div>`:''}
+        </div>
+        <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="${a.ctaFn}">${a.cta} →</button>
+      </div>`;
+  });
+}
 
-        if (session) {
-            // Update local state with real user info
-            state.user = {
-                email: session.user.email,
-                name: session.user.email.split('@')[0],
-                id: session.user.id
-            };
-            saveState(state);
-        } else {
-            // No session in Supabase, clear local user
-            state.user = null;
-            saveState(state);
-        }
-    }
+// ── HOGAR ─────────────────────────────────
+function renderHogar() {
+  // Services list
+  const sc = document.getElementById('servicesContainer');
+  if(sc) sc.innerHTML = HOGAR_SERVICES.map(s=>`
+    <div class="service-row">
+      <span style="font-size:1.3rem">${s.emoji}</span>
+      <div style="flex:1"><div style="font-weight:600;font-size:.9rem">${s.name}</div>
+        <div style="font-size:.75rem;color:var(--text-muted)">${s.active?s.provider+' · '+s.expiry:'No configurado'}</div></div>
+      ${s.active?`<div style="font-family:var(--font-mono);font-weight:700;font-size:.9rem">${fmt(s.amount)}/mes</div>`:''}
+      <label class="switch"><input type="checkbox" ${s.active?'checked':''} onchange="showToast('Servicio actualizado','ok')"><span class="slider"></span></label>
+    </div>`).join('');
 
-    // Check auth everywhere except landing
-    const isDashboard = window.location.href.includes('dashboard');
-    const isAuth = window.location.href.includes('auth');
+  // Spending chart
+  const chart = document.getElementById('spendingChart');
+  const labels = document.getElementById('spendingLabels');
+  if(chart && labels) {
+    const max = Math.max(...SPENDING_HISTORY.map(m=>m.total));
+    chart.innerHTML = SPENDING_HISTORY.map(m=>`
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="font-size:.65rem;color:var(--text-muted)">${fmt(m.total).slice(1)}</div>
+        <div style="width:100%;background:var(--color-primary);border-radius:4px 4px 0 0;transition:height 1s ease;height:${Math.round(m.total/max*140)}px"></div>
+      </div>`).join('');
+    labels.innerHTML = SPENDING_HISTORY.map(m=>`<span>${m.month}</span>`).join('');
+  }
 
-    const state = getState();
+  // Energy label (recalculate on input)
+  ['hM2','hPersonas'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', updateEnergyLabel);
+  });
+  updateEnergyLabel();
+}
 
-    if (isDashboard) {
-        if (!state || !state.user) {
-            window.location.href = 'auth.html?mode=login';
-        } else {
-            renderDashboard();
-        }
-    } else if (isAuth) {
-        if (state && state.user && document.getElementById('view-login') && document.getElementById('view-login').classList.contains('active')) {
-            window.location.href = 'dashboard.html';
-        } else if (state && state.user && document.getElementById('view-register') && document.getElementById('view-register').classList.contains('active')) {
-            goToView('setup'); // Si está registrado pero volvió a auth, forzar step de hogar
-        }
-    } else {
-        // En index, si ya hay sesión, cambiar botón a ir al panel
-        if (state && state.user) {
-            const loginBtn = document.querySelector('nav a[href="auth.html?mode=login"]');
-            const ctaBtn = document.querySelector('.hero a[href="auth.html"]');
-            if (loginBtn) loginBtn.innerText = 'Ir al Panel';
-            if (ctaBtn) {
-                ctaBtn.innerHTML = 'Entrar al Panel <i data-lucide="arrow-right" width="18"></i>';
-                ctaBtn.href = 'dashboard.html';
-                if (window.lucide) window.lucide.createIcons();
-            }
-        }
-    }
+function updateEnergyLabel() {
+  const m2  = parseFloat(document.getElementById('hM2')?.value)||80;
+  const pax = parseFloat(document.getElementById('hPersonas')?.value)||3;
+  const kwhPerM2 = (150 + pax*20) / m2;
+  const grade = kwhPerM2<5?'A':kwhPerM2<7?'B':kwhPerM2<9?'C':kwhPerM2<11?'D':kwhPerM2<14?'E':'F';
+  const badge = document.getElementById('energyLabelBadge');
+  const text  = document.getElementById('energyLabelText');
+  const desc  = document.getElementById('energyLabelDesc');
+  const kwh   = document.getElementById('energyKwh');
+  const bar   = document.getElementById('energyBar');
+  if(badge) { badge.textContent=grade; badge.className='energy-badge energy-'+grade; }
+  if(text)  text.textContent = grade+' — '+(kwhPerM2<9?'Eficiencia buena':'Margen de mejora');
+  if(desc)  desc.textContent = 'Tu hogar: '+kwhPerM2.toFixed(1)+' kWh/m²/mes vs media 8 kWh/m²/mes';
+  if(kwh)   kwh.textContent  = kwhPerM2.toFixed(1)+' kWh/m²/mes';
+  if(bar)   bar.style.width  = Math.min(kwhPerM2/20*100,100)+'%';
+}
+
+// ── PERFIL ────────────────────────────────
+function renderPerfil() {
+  const email = 'demo@ahorra360.es';
+  const name  = 'Usuario Demo';
+  const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const av = document.getElementById('profileAvatar');
+  if(av) av.textContent = initials;
+  const pn = document.getElementById('profileName'); if(pn) pn.textContent=name;
+  const pe = document.getElementById('profileEmail'); if(pe) pe.textContent=email;
+  const pNombre = document.getElementById('pNombre'); if(pNombre) pNombre.value=name;
+  const pEmail  = document.getElementById('pEmail');  if(pEmail)  pEmail.value=email;
+
+  const statsData = [
+    {label:'Facturas analizadas',value:'3'},
+    {label:'Ahorro conseguido',  value:'€0'},
+    {label:'Recomendaciones',    value:'3'},
+    {label:'Score actual',       value:'62/100'},
+  ];
+  const ps = document.getElementById('profileStats');
+  if(ps) ps.innerHTML = statsData.map(s=>`
+    <div style="padding:12px;background:var(--bg-surface-2);border-radius:var(--radius-lg);border:1px solid var(--border)">
+      <div style="font-size:.7rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em">${s.label}</div>
+      <div style="font-size:1.2rem;font-weight:800;margin-top:4px">${s.value}</div>
+    </div>`).join('');
+}
+
+// ── CONFETTI ──────────────────────────────
+function launchConfetti() {
+  const colors=['#1641B0','#059669','#F59E0B','#EF4444','#8B5CF6'];
+  for(let i=0;i<30;i++){
+    const el=document.createElement('div');
+    el.className='confetti-piece';
+    el.style.cssText=`left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};transform:rotate(${Math.random()*360}deg);animation-delay:${Math.random()*0.5}s;animation-duration:${2+Math.random()*1.5}s;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),4000);
+  }
+}
+
+// ── INIT ──────────────────────────────────
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(typeof lucide!=='undefined') lucide.createIcons();
+  // Sidebar username
+  const sn = document.getElementById('sidebarName');
+  const se = document.getElementById('sidebarEmail');
+  const sa = document.getElementById('sidebarAvatar');
+  if(sn) sn.textContent='Usuario Demo';
+  if(se) se.textContent='demo@ahorra360.es';
+  if(sa) sa.textContent='UD';
+  // Start on inicio
+  navigate('inicio');
+  // Handle URL hash
+  const hash = window.location.hash.replace('#','');
+  if(hash && document.getElementById('page-'+hash)) navigate(hash);
 });

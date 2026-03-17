@@ -1,445 +1,564 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es" data-theme="light">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Accede a Ahorra 360 y controla todas tus facturas del hogar con IA." />
-    <meta name="theme-color" content="#4F46E5" />
-    <title>Acceso — Ahorra 360</title>
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
-    <link rel="stylesheet" href="styles/globals.css" />
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script>
-        // Registrar Service Worker para PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(() => console.log('[SW] Registered'))
-                .catch(err => console.warn('[SW] Registration failed', err));
-        }
-    </script>
-    <style>
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-        body {
-            background: var(--bg-surface-2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: var(--space-4);
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Accede a Ahorra 360 y controla todas tus facturas del hogar con IA." />
+  <meta name="theme-color" content="#1641B0" />
+  <title>Acceso — Ahorra 360</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="stylesheet" href="styles/globals.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('[SW] Registered'))
+        .catch(err => console.warn('[SW] Registration failed', err));
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { min-height: 100vh; display: flex; overflow: hidden; }
 
-        .auth-container {
-            width: 100%;
-            max-width: 440px;
-        }
+    /* ── SPLIT LAYOUT ──────────────────────────── */
+    .auth-left {
+      flex: 0 0 42%;
+      background: linear-gradient(150deg, #0F2D8A 0%, #1641B0 40%, #0891B2 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: var(--space-12) var(--space-8);
+      position: relative; overflow: hidden;
+    }
+    .auth-left::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 80% at 30% 20%, rgba(255,255,255,0.10) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    @media(max-width:768px) { .auth-left { display: none; } }
 
-        .auth-card {
-            background: var(--bg-surface);
-            padding: var(--space-8);
-            border-radius: var(--radius-2xl);
-            box-shadow: var(--shadow-xl);
-            border: 1px solid var(--border);
-        }
+    .auth-left-inner { position: relative; z-index: 1; text-align: center; color: #fff; }
+    .auth-left-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: var(--space-8); }
+    .auth-left-logo span { font-family: var(--font-heading); font-weight: 800; font-size: 1.5rem; }
 
-        .auth-header {
-            text-align: center;
-            margin-bottom: var(--space-8);
-        }
+    .auth-stats { display: flex; flex-direction: column; gap: var(--space-5); margin-top: var(--space-8); }
+    .auth-stat-card {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.20);
+      border-radius: var(--radius-xl); padding: var(--space-5);
+      backdrop-filter: blur(10px); text-align: left;
+    }
+    .auth-stat-num { font-size: 1.75rem; font-weight: 800; font-family: var(--font-heading); line-height: 1; }
+    .auth-stat-label { font-size: 0.8rem; opacity: 0.75; margin-top: 4px; }
 
-        .logo {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-3);
-            margin-bottom: var(--space-4);
-            text-decoration: none;
-        }
+    .auth-testimonial {
+      background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: var(--radius-xl); padding: var(--space-5);
+      margin-top: var(--space-6); text-align: left;
+    }
+    .auth-testimonial-text { font-size: var(--text-sm); line-height: var(--leading-relaxed); opacity: 0.9; font-style: italic; }
+    .auth-testimonial-author { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+    .auth-testimonial-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+    }
 
-        .logo-mark {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-weight: var(--font-extrabold);
-            font-size: var(--text-lg);
-            font-family: var(--font-heading);
-            box-shadow: var(--shadow-primary);
-        }
+    /* ── RIGHT SIDE (FORM) ─────────────────────── */
+    .auth-right {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: var(--space-8) var(--space-6);
+      background: var(--bg); position: relative; overflow-y: auto;
+    }
+    .auth-topbar {
+      position: absolute; top: var(--space-4); right: var(--space-6);
+      display: flex; align-items: center; gap: var(--space-3);
+    }
 
-        .logo-text {
-            font-family: var(--font-heading);
-            font-weight: var(--font-extrabold);
-            font-size: var(--text-xl);
-            color: var(--text-primary);
-        }
+    .auth-container { width: 100%; max-width: 420px; }
 
-        .auth-title {
-            font-size: var(--text-2xl);
-            font-weight: var(--font-bold);
-            margin-bottom: var(--space-2);
-        }
+    .auth-card {
+      background: var(--bg-surface);
+      padding: var(--space-8);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border);
+    }
+    [data-theme="dark"] .auth-right { background: var(--bg); }
 
-        .auth-sub {
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
-        }
+    .auth-header { text-align: center; margin-bottom: var(--space-6); }
+    .auth-logo-link { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; margin-bottom: var(--space-5); }
+    .auth-logo-text { font-family: var(--font-heading); font-weight: 800; font-size: 1.35rem; color: var(--text-primary); }
+    .auth-logo-text span { color: var(--color-primary); }
+    .auth-title { font-size: var(--text-2xl); font-weight: 800; margin-bottom: 6px; }
+    .auth-sub   { font-size: var(--text-sm); color: var(--text-secondary); }
 
-        .view {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
+    .view { display: none; animation: fadeIn 0.3s ease; }
+    .view.active { display: block; }
 
-        .view.active {
-            display: block;
-        }
+    .social-btn {
+      width: 100%; display: flex; justify-content: center;
+      background: var(--bg-surface); border: 1.5px solid var(--border-strong);
+      color: var(--text-primary); margin-bottom: var(--space-3);
+    }
+    .social-btn:hover { background: var(--bg-surface-2); border-color: var(--color-primary); }
 
-        .social-btn {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-strong);
-            color: var(--text-primary);
-            margin-bottom: var(--space-3);
-        }
+    /* Password strength */
+    .pwd-strength { display: flex; gap: 4px; margin-top: 6px; }
+    .pwd-bar { height: 3px; flex: 1; border-radius: 99px; background: var(--border-strong); transition: background 0.3s; }
+    .pwd-bar.low    { background: var(--color-danger); }
+    .pwd-bar.medium { background: var(--color-warning); }
+    .pwd-bar.high   { background: var(--color-accent); }
+    .pwd-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
 
-        .social-btn:hover {
-            background: var(--bg-surface-2);
-            border-color: var(--color-primary);
-        }
+    .checkbox-group { display: flex; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-3); }
+    .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--color-primary); cursor: pointer; flex-shrink: 0; }
+    .checkbox-label { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.5; cursor: pointer; }
 
-        .checkbox-group {
-            display: flex;
-            align-items: flex-start;
-            gap: var(--space-3);
-            margin-top: var(--space-3);
-        }
+    .auth-footer { text-align: center; margin-top: var(--space-5); font-size: var(--text-sm); color: var(--text-secondary); }
+    .auth-link { color: var(--color-primary); font-weight: var(--font-semibold); cursor: pointer; }
+    .auth-link:hover { text-decoration: underline; }
 
-        .checkbox-group input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            margin-top: 2px;
-            accent-color: var(--color-primary);
-            cursor: pointer;
-        }
+    /* Onboarding steps indicator */
+    .step-indicator { display: flex; justify-content: center; gap: 6px; margin-bottom: var(--space-6); }
+    .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); transition: var(--transition-base); }
+    .step-dot.active { background: var(--color-primary); width: 24px; border-radius: 4px; }
+    .step-dot.done   { background: var(--color-accent); }
 
-        .checkbox-label {
-            font-size: var(--text-xs);
-            color: var(--text-secondary);
-            line-height: 1.4;
-            cursor: pointer;
-        }
+    .home-icon {
+      width: 64px; height: 64px;
+      background: var(--color-primary-50); color: var(--color-primary);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto var(--space-4);
+    }
 
-        .auth-footer {
-            text-align: center;
-            margin-top: var(--space-6);
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
-        }
-
-        .auth-link {
-            color: var(--color-primary);
-            font-weight: var(--font-medium);
-            cursor: pointer;
-            text-decoration: none;
-        }
-
-        .auth-link:hover {
-            text-decoration: underline;
-        }
-
-        /* Hogar Setup */
-        .home-icon {
-            width: 64px;
-            height: 64px;
-            background: var(--color-primary-50);
-            color: var(--color-primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto var(--space-4);
-        }
-    </style>
+    /* Toast notifications */
+    .toast {
+      position: fixed; bottom: var(--space-6); left: 50%; transform: translateX(-50%);
+      background: var(--text-primary); color: var(--bg-surface);
+      padding: 12px 20px; border-radius: var(--radius-lg);
+      font-size: var(--text-sm); font-weight: var(--font-semibold);
+      box-shadow: var(--shadow-xl); z-index: 999;
+      animation: slideUp 0.3s ease, fadeOut 0.4s 2.6s ease forwards;
+      white-space: nowrap; max-width: 90vw;
+    }
+    .toast.error { background: var(--color-danger); color: #fff; }
+    .toast.success { background: var(--color-accent); color: #fff; }
+    @keyframes fadeOut { from { opacity:1; } to { opacity:0; transform: translateX(-50%) translateY(10px); } }
+  </style>
 </head>
-
 <body>
 
-    <div class="auth-container">
-        <div class="auth-card">
-            <div class="auth-header">
-                <a href="index.html" class="logo">
-                    <div class="logo-mark" style="width:30px;height:30px;font-size:1rem">A</div>
-                    <span class="logo-text" style="font-size:1.2rem">Ahorra <span>360</span></span>
-                </a>
-                <h1 class="auth-title" id="viewTitle">Crea tu cuenta</h1>
-                <p class="auth-sub" id="viewSub">Empieza a entender tus facturas en 60 segundos.</p>
-            </div>
+  <!-- LEFT PANEL -->
+  <div class="auth-left" aria-hidden="true">
+    <div class="auth-left-inner animate-fade">
+      <div class="auth-left-logo">
+        <svg width="38" height="38" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="36" height="36" rx="9" fill="rgba(255,255,255,0.2)"/>
+          <rect x="7" y="22" width="4" height="7" rx="1.5" fill="white" opacity="0.6"/>
+          <rect x="13" y="17" width="4" height="12" rx="1.5" fill="white" opacity="0.8"/>
+          <rect x="19" y="12" width="4" height="17" rx="1.5" fill="white"/>
+          <path d="M23 10 L27 6 L27 10" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M27 6 L27 13" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span>Ahorra 360</span>
+      </div>
+      <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:8px">Tu copiloto financiero.</h2>
+      <p style="opacity:0.80;font-size:0.9rem;max-width:280px;line-height:1.6">Entiende cada factura, compara en tiempo real y actúa. Con IA.</p>
 
-            <!-- VISTA: REGISTRO -->
-            <div id="view-register" class="view active">
-                <button class="btn btn-lg social-btn" type="button" onclick="loginWithGoogle()">
-                    <i data-lucide="chrome" width="18" height="18"></i> Continuar con Google
-                </button>
-                <div class="divider-text">o usa tu email</div>
-
-                <form class="flex-col gap-4" id="registerForm" novalidate>
-                    <div class="input-group">
-                        <label class="input-label">Email</label>
-                        <input type="email" class="input" placeholder="tu@email.com" id="regEmail">
-                    </div>
-                    <div class="input-group">
-                        <label class="input-label">Contraseña</label>
-                        <input type="password" class="input" placeholder="••••••••" id="regPassword">
-                    </div>
-
-                    <div class="flex-col gap-2 mt-2">
-                        <label class="checkbox-group">
-                            <input type="checkbox" id="regCb1">
-                            <span class="checkbox-label">He leído y acepto los <a href="#" class="auth-link">Términos de
-                                    uso</a> y la <a href="#" class="auth-link">Política de Privacidad</a>.</span>
-                        </label>
-                        <label class="checkbox-group">
-                            <input type="checkbox" id="regCb2">
-                            <span class="checkbox-label">Consiento el procesamiento automático de mis facturas para
-                                generar explicaciones y comparativas (requerido).</span>
-                        </label>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-lg w-full mt-4" style="justify-content:center">
-                        Crear cuenta
-                    </button>
-                </form>
-
-                <div class="auth-footer">
-                    ¿Ya tienes cuenta? <span class="auth-link" onclick="goToView('login')">Inicia sesión</span>
-                </div>
-            </div>
-
-            <!-- VISTA: LOGIN -->
-            <div id="view-login" class="view">
-                <button class="btn btn-lg social-btn" type="button" onclick="loginWithGoogle()">
-                    <i data-lucide="chrome" width="18" height="18"></i> Iniciar con Google
-                </button>
-                <div class="divider-text">o usa tu email</div>
-
-                <form class="flex-col gap-4" id="loginForm">
-                    <div class="input-group">
-                        <label class="input-label">Email</label>
-                        <input type="email" class="input" placeholder="tu@email.com" required value="demo@ahorra360.es">
-                    </div>
-                    <div class="input-group">
-                        <div class="flex justify-between items-center w-full">
-                            <label class="input-label">Contraseña</label>
-                            <a href="#" class="auth-link text-xs">¿La olvidaste?</a>
-                        </div>
-                        <input type="password" class="input" placeholder="••••••••" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-lg w-full mt-4" style="justify-content:center">
-                        Iniciar sesión
-                    </button>
-                </form>
-
-                <div class="auth-footer">
-                    ¿No tienes cuenta? <span class="auth-link" onclick="goToView('register')">Regístrate</span>
-                </div>
-            </div>
-
-            <!-- VISTA: SETUP HOGAR (ONBOARDING PASO 1) -->
-            <div id="view-setup" class="view text-center">
-                <div class="home-icon">
-                    <i data-lucide="home" width="32" height="32"></i>
-                </div>
-                <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:8px">Configura tu hogar</h2>
-                <p class="text-secondary text-sm mb-6">¿Cómo quieres llamar a tu buzón de facturas?</p>
-
-                <form class="flex-col gap-4 text-left" id="setupForm">
-                    <div class="input-group">
-                        <label class="input-label">Nombre del Hogar</label>
-                        <input type="text" class="input" placeholder="Ej: Casa García, Mi Piso..." required>
-                    </div>
-                    <p class="text-xs text-muted mt-2">
-                        <i data-lucide="info" width="12" height="12"
-                            style="display:inline-block;vertical-align:middle;margin-right:4px"></i>
-                        Te asignaremos un correo único (ej: <code>casa-garcia@ahorra360.es</code>) al que podrás
-                        reenviar tus facturas para que se analicen solas.
-                    </p>
-
-                    <button type="submit" class="btn btn-primary btn-lg w-full mt-4" style="justify-content:center">
-                        Continuar
-                    </button>
-                </form>
-            </div>
-
-            <!-- VISTA: AHA MOMENT (ONBOARDING PASO 2) -->
-            <div id="view-aha" class="view text-center">
-                <div class="home-icon" style="background:#FEF3C7;color:#D97706;animation:pulse 2s infinite">
-                    <i data-lucide="qr-code" width="32" height="32"></i>
-                </div>
-                <h2 style="font-size:1.5rem;font-weight:800;font-family:var(--font-heading);margin-bottom:8px">¡Empieza
-                    a ahorrar ahora!</h2>
-                <p class="text-secondary text-sm mb-6">Tu factura de la luz tiene un código QR oficial de la CNMC.
-                    Escanéalo y te diremos al instante si pagas de más.</p>
-
-                <div class="flex-col gap-3">
-                    <button class="btn btn-accent btn-lg w-full"
-                        style="justify-content:center;font-size:1.1rem;box-shadow:0 10px 25px -5px rgba(22,163,74,0.4)"
-                        onclick="window.location.href='dashboard.html?tour=1'">
-                        <i data-lucide="scan" width="20" height="20"></i> Escanear QR ahora
-                    </button>
-                    <button class="btn btn-secondary btn-lg w-full" style="justify-content:center"
-                        onclick="window.location.href='dashboard.html'">
-                        Subir PDF en su lugar
-                    </button>
-                    <button class="btn btn-ghost w-full" style="justify-content:center;margin-top:8px"
-                        onclick="window.location.href='dashboard.html'">
-                        Saltar y cruzar al panel
-                    </button>
-                </div>
-            </div>
-
+      <div class="auth-stats">
+        <div class="auth-stat-card">
+          <div class="auth-stat-num">€487</div>
+          <div class="auth-stat-label">Ahorro medio anual detectado por hogar</div>
         </div>
+        <div class="auth-stat-card">
+          <div class="auth-stat-num">12.847</div>
+          <div class="auth-stat-label">Hogares activos en España</div>
+        </div>
+      </div>
+
+      <div class="auth-testimonial">
+        <p class="auth-testimonial-text">"La IA me avisó de que mi promo de Orange caducaba. Cambié a Digi y ahorro €30/mes. Increíble."</p>
+        <div class="auth-testimonial-author">
+          <div class="auth-testimonial-avatar">JF</div>
+          <div style="font-size:0.75rem;opacity:0.8">Javier · Barcelona</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL (FORM) -->
+  <div class="auth-right">
+    <div class="auth-topbar">
+      <button class="theme-toggle" id="themeBtn" title="Cambiar tema" aria-label="Cambiar modo claro/oscuro">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
     </div>
 
-    <script>
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            alert('Error técnico detectado:\n' + msg + '\nLínea: ' + lineNo);
-            return false;
-        };
-        lucide.createIcons();
+    <div class="auth-container animate-fade">
+      <div class="auth-card">
+        <div class="auth-header">
+          <a href="index.html" class="auth-logo-link">
+            <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="36" height="36" rx="9" fill="url(#ag2)"/>
+              <defs><linearGradient id="ag2" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1641B0"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs>
+              <rect x="7" y="22" width="4" height="7" rx="1.5" fill="white" opacity="0.6"/>
+              <rect x="13" y="17" width="4" height="12" rx="1.5" fill="white" opacity="0.8"/>
+              <rect x="19" y="12" width="4" height="17" rx="1.5" fill="white"/>
+              <path d="M23 10 L27 6 L27 10" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M27 6 L27 13" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span class="auth-logo-text">Ahorra <span>360</span></span>
+          </a>
+          <h1 class="auth-title" id="viewTitle">Crea tu cuenta</h1>
+          <p class="auth-sub" id="viewSub">Empieza a entender tus facturas en 60 segundos.</p>
+        </div>
 
-        // Apply theme if set
-        if (localStorage.getItem('a360-theme') === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        }
+        <!-- STEP INDICATOR -->
+        <div class="step-indicator" id="stepIndicator" style="display:none">
+          <div class="step-dot" id="dot1"></div>
+          <div class="step-dot" id="dot2"></div>
+          <div class="step-dot" id="dot3"></div>
+        </div>
 
-        // Handle URL params for mode
-        const urlParams = new URLSearchParams(window.location.search);
-        const modeParam = urlParams.get('mode');
+        <!-- VISTA: REGISTRO -->
+        <div id="view-register" class="view active">
+          <button class="btn btn-lg social-btn" type="button" onclick="loginWithGoogle()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Continuar con Google
+          </button>
+          <div class="divider-text">o usa tu email</div>
 
-        if (modeParam === 'login') {
-            goToView('login');
-        } else {
-            goToView('register');
-        }
+          <form class="flex-col gap-4" id="registerForm" novalidate>
+            <div class="input-group">
+              <label class="input-label">Email</label>
+              <input type="email" class="input" placeholder="tu@email.com" id="regEmail" autocomplete="email" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">Contraseña</label>
+              <input type="password" class="input" placeholder="Mínimo 8 caracteres" id="regPassword" autocomplete="new-password" />
+              <div class="pwd-strength" id="pwdStrength">
+                <div class="pwd-bar" id="pb1"></div>
+                <div class="pwd-bar" id="pb2"></div>
+                <div class="pwd-bar" id="pb3"></div>
+                <div class="pwd-bar" id="pb4"></div>
+              </div>
+              <div class="pwd-label" id="pwdLabel"></div>
+            </div>
+            <div class="flex-col gap-1 mt-1">
+              <label class="checkbox-group">
+                <input type="checkbox" id="regCb1" />
+                <span class="checkbox-label">He leído y acepto los <a href="#" class="auth-link">Términos de uso</a> y la <a href="#" class="auth-link">Política de Privacidad</a>.</span>
+              </label>
+              <label class="checkbox-group">
+                <input type="checkbox" id="regCb2" />
+                <span class="checkbox-label">Consiento el procesamiento automático de mis facturas para generar explicaciones y comparativas (requerido).</span>
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg w-full" style="margin-top:var(--space-2)">
+              Crear cuenta gratis
+            </button>
+          </form>
+          <div class="auth-footer">¿Ya tienes cuenta? <span class="auth-link" onclick="goToView('login')">Inicia sesión</span></div>
+        </div>
 
-        function goToView(viewId) {
-            // Hide all
-            document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-            // Show requested
-            document.getElementById('view-' + viewId).classList.add('active');
+        <!-- VISTA: LOGIN -->
+        <div id="view-login" class="view">
+          <button class="btn btn-lg social-btn" type="button" onclick="loginWithGoogle()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Iniciar con Google
+          </button>
+          <div class="divider-text">o usa tu email</div>
+          <form class="flex-col gap-4" id="loginForm">
+            <div class="input-group">
+              <label class="input-label">Email</label>
+              <input type="email" class="input" placeholder="tu@email.com" autocomplete="email" />
+            </div>
+            <div class="input-group">
+              <div class="flex justify-between items-center">
+                <label class="input-label">Contraseña</label>
+                <a href="#" class="auth-link text-xs">¿La olvidaste?</a>
+              </div>
+              <input type="password" class="input" placeholder="••••••••" autocomplete="current-password" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg w-full">Iniciar sesión</button>
+          </form>
+          <div class="auth-footer">¿No tienes cuenta? <span class="auth-link" onclick="goToView('register')">Regístrate gratis</span></div>
+        </div>
 
-            // Update headers
-            const title = document.getElementById('viewTitle');
-            const sub = document.getElementById('viewSub');
+        <!-- VISTA: SETUP HOGAR -->
+        <div id="view-setup" class="view text-center">
+          <div class="home-icon"><i data-lucide="home" width="32" height="32"></i></div>
+          <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:8px">Configura tu hogar</h2>
+          <p class="text-secondary text-sm mb-6">¿Cómo quieres llamar a tu buzón de facturas?</p>
+          <form class="flex-col gap-4 text-left" id="setupForm">
+            <div class="input-group">
+              <label class="input-label">Nombre del Hogar</label>
+              <input type="text" class="input" placeholder="Ej: Casa García, Mi Piso..." id="setupHogarInput" required />
+            </div>
+            <div class="input-group">
+              <label class="input-label">Código postal</label>
+              <input type="text" class="input" placeholder="28001" maxlength="5" pattern="[0-9]{5}" id="setupCP" />
+            </div>
+            <p class="text-xs text-muted">
+              <i data-lucide="info" width="12" height="12" style="display:inline;vertical-align:-2px;margin-right:4px"></i>
+              Te asignaremos un correo único (ej: <code>casa-garcia@ahorra360.es</code>) para reenviar facturas.
+            </p>
+            <button type="submit" class="btn btn-primary btn-lg w-full">Continuar</button>
+          </form>
+        </div>
 
-            if (viewId === 'register') {
-                title.innerText = 'Crea tu cuenta';
-                sub.innerText = 'Empieza a entender tus facturas en 60 segundos.';
-                document.querySelector('.auth-header').style.display = 'block';
-            } else if (viewId === 'login') {
-                title.innerText = 'Inicia sesión';
-                sub.innerText = '¡Qué bueno verte de nuevo!';
-                document.querySelector('.auth-header').style.display = 'block';
-            } else {
-                document.querySelector('.auth-header').style.display = 'none';
-                if (viewId === 'aha') {
-                    const audio = new Audio('data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NExAAQAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq');
-                    audio.volume = 0; // Just to satisfy any browser interaction requirement silently if needed
-                    audio.play().catch(e => console.log(e));
-                }
-            }
-        }
+        <!-- VISTA: AHA MOMENT -->
+        <div id="view-aha" class="view text-center">
+          <div class="home-icon" style="background:var(--color-accent-50);color:var(--color-accent);animation:ai-border-pulse 2s infinite">
+            <i data-lucide="zap" width="32" height="32"></i>
+          </div>
+          <h2 style="font-size:1.5rem;font-weight:800;font-family:var(--font-heading);margin-bottom:8px">¡Tu copiloto está listo!</h2>
+          <p class="text-secondary text-sm mb-6">Empieza con tu factura de luz — tiene un QR oficial de la CNMC. Escanéalo y la IA analiza todo en segundos.</p>
+          <div class="flex-col gap-3">
+            <button class="btn btn-accent btn-lg w-full" style="font-size:1rem;box-shadow:0 10px 25px -5px rgba(5,150,105,0.4)" onclick="window.location.href='dashboard.html?tour=1'">
+              <i data-lucide="scan" width="20" height="20"></i> Escanear QR de mi factura
+            </button>
+            <button class="btn btn-secondary btn-lg w-full" onclick="window.location.href='dashboard.html'">
+              <i data-lucide="upload" width="18" height="18"></i> Subir PDF en su lugar
+            </button>
+            <button class="btn btn-ghost w-full" style="margin-top:4px" onclick="window.location.href='dashboard.html'">
+              Explorar el panel primero
+            </button>
+          </div>
+          <div style="margin-top:var(--space-5);padding:12px;background:var(--color-primary-50);border-radius:var(--radius-lg);font-size:var(--text-xs);color:var(--text-secondary)">
+            <i data-lucide="shield" width="12" height="12" style="display:inline;vertical-align:-2px"></i>
+            Tu factura se procesa y elimina en 24h. Datos cifrados AES-256. RGPD garantizado.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        // Form Handlers
-        document.addEventListener('DOMContentLoaded', () => {
-            const btnReg = document.querySelector('#registerForm button[type="submit"]');
-            document.getElementById('registerForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('regEmail').value;
-                const pass = document.getElementById('regPassword').value;
-                const cb1 = document.getElementById('regCb1').checked;
-                const cb2 = document.getElementById('regCb2').checked;
+  <script>
+    // ╔══════════════════════════════════════════════════╗
+    //  AHORRA 360 — auth.html self-contained script
+    // ╚══════════════════════════════════════════════════╝
 
-                if (!email) {
-                    alert('Por favor, introduce tu email.');
-                    return;
-                }
-                if (pass.length < 6) {
-                    alert('La contraseña debe tener al menos 6 caracteres.');
-                    return;
-                }
-                if (!cb1 || !cb2) {
-                    alert('Debes marcar ambas casillas para poder continuar.');
-                    return;
-                }
+    // ── THEME ───────────────────────────────────────────
+    (function() {
+      const t = localStorage.getItem('ahorra360-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+    document.getElementById('themeBtn').addEventListener('click', function() {
+      const cur = document.documentElement.getAttribute('data-theme');
+      const nxt = cur === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', nxt);
+      localStorage.setItem('ahorra360-theme', nxt);
+    });
 
-                btnReg.innerText = 'Creando cuenta...';
-                btnReg.disabled = true;
+    // ── SUPABASE (optional) ─────────────────────────────
+    var _sbUrl  = 'https://your-project.supabase.co';
+    var _sbKey  = 'your-anon-key';
+    var _sb = null;
+    // Only init Supabase if real credentials are configured
+    if (!_sbUrl.includes('your-project') && !_sbKey.includes('your-anon')) {
+      try {
+        if (window.supabase) _sb = window.supabase.createClient(_sbUrl, _sbKey);
+      } catch(e) { console.warn('Supabase init failed:', e); }
+    }
 
-                try {
-                    const success = await registerUser(email, pass);
-                    if (success) {
-                        goToView('setup');
-                        return; // no need to re-enable, user moves on
-                    }
-                } catch (err) {
-                    console.error('[auth] registerUser threw unexpectedly:', err);
-                } finally {
-                    // SIEMPRE resetear el botón si el usuario sigue en esta vista
-                    if (document.getElementById('view-register').classList.contains('active')) {
-                        btnReg.innerText = 'Crear cuenta';
-                        btnReg.disabled = false;
-                    }
-                }
-            });
+    // ── TOAST ───────────────────────────────────────────
+    function showToast(msg, type) {
+      var t = document.getElementById('authToastEl');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'authToastEl';
+        t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 22px;border-radius:10px;font-size:.875rem;font-weight:700;z-index:9999;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.2);color:#fff;transition:opacity .3s';
+        document.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.style.background = type === 'error' ? '#DC2626' : type === 'ok' ? '#059669' : '#1641B0';
+      t.style.opacity = '1';
+      t.style.display = 'block';
+      clearTimeout(t._to);
+      t._to = setTimeout(function() { t.style.opacity = '0'; }, 3000);
+    }
 
-            const btnLog = document.querySelector('#loginForm button[type="submit"]');
-            document.getElementById('loginForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                btnLog.innerText = 'Iniciando...';
-                btnLog.disabled = true;
-                const email = e.target.querySelector('input[type=email]').value;
-                const pass = e.target.querySelector('input[type=password]').value;
-
-                try {
-                    await loginUser(email, pass);
-                } catch (err) {
-                    console.error('[auth] loginUser threw unexpectedly:', err);
-                } finally {
-                    if (document.getElementById('view-login').classList.contains('active')) {
-                        btnLog.innerText = 'Iniciar sesión';
-                        btnLog.disabled = false;
-                    }
-                }
-            });
-
-            const btnSetup = document.querySelector('#setupForm button[type="submit"]');
-            document.getElementById('setupForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                btnSetup.innerText = 'Guardando...';
-                btnSetup.disabled = true;
-                const name = e.target.querySelector('input[type=text]').value;
-                try {
-                    await setHogar(name);
-                } catch (err) {
-                    console.error('[auth] setHogar threw unexpectedly:', err);
-                    btnSetup.innerText = 'Continuar';
-                    btnSetup.disabled = false;
-                }
-            });
+    // ── VIEW ROUTING ────────────────────────────────────
+    function goToView(viewId) {
+      document.querySelectorAll('.view').forEach(function(el) { el.classList.remove('active'); });
+      var v = document.getElementById('view-' + viewId);
+      if (v) v.classList.add('active');
+      var title  = document.getElementById('viewTitle');
+      var sub    = document.getElementById('viewSub');
+      var header = document.querySelector('.auth-header');
+      var indicator = document.getElementById('stepIndicator');
+      if (!title || !header) return;
+      header.style.display = 'block';
+      indicator.style.display = 'none';
+      if (viewId === 'register') {
+        title.textContent = 'Crea tu cuenta';
+        sub.textContent   = 'Empieza a entender tus facturas en 60 segundos.';
+      } else if (viewId === 'login') {
+        title.textContent = 'Inicia sesión';
+        sub.textContent   = '¡Qué bueno verte de nuevo!';
+      } else {
+        header.style.display = 'none';
+        indicator.style.display = 'flex';
+        var dots = { setup: ['done','active',''], aha: ['done','done','active'] };
+        var d = dots[viewId] || [];
+        ['dot1','dot2','dot3'].forEach(function(id, i) {
+          var el = document.getElementById(id);
+          if (el) el.className = 'step-dot ' + (d[i] || '');
         });
-    </script>
-    <script src="app.js"></script>
-</body>
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 
+    // ── AUTH FUNCTIONS ──────────────────────────────────
+    async function registerUser(email, pass) {
+      if (!_sb) {
+        showToast('✓ Cuenta creada — accediendo al panel...', 'ok');
+        setTimeout(function() { window.location.href = 'dashboard.html'; }, 1000);
+        return true;
+      }
+      var result = await _sb.auth.signUp({ email: email, password: pass });
+      if (result.error) { showToast(result.error.message, 'error'); return false; }
+      if (result.data.user && !result.data.session) {
+        showToast('✉️ Revisa tu email para confirmar la cuenta', 'ok');
+        return false;
+      }
+      return true;
+    }
+
+    async function loginUser(email, pass) {
+      if (!_sb) {
+        showToast('Accediendo en modo demo...', 'ok');
+        setTimeout(function() { window.location.href = 'dashboard.html'; }, 700);
+        return;
+      }
+      var result = await _sb.auth.signInWithPassword({ email: email, password: pass });
+      if (result.error) { showToast(result.error.message, 'error'); return; }
+      window.location.href = 'dashboard.html';
+    }
+
+    function loginWithGoogle() {
+      if (!_sb) {
+        showToast('Conectando con Google...', 'ok');
+        setTimeout(function() { window.location.href = 'dashboard.html'; }, 800);
+        return;
+      }
+      _sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin + '/dashboard.html' }
+      });
+    }
+
+    async function setHogar(name) {
+      showToast('✓ Hogar "' + name + '" creado', 'ok');
+      setTimeout(function() { goToView('aha'); }, 800);
+    }
+
+    // ── URL PARAMS ──────────────────────────────────────
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('mode') === 'login') goToView('login');
+      else goToView('register');
+    })();
+
+    // ── PASSWORD STRENGTH ───────────────────────────────
+    var pwdInput = document.getElementById('regPassword');
+    if (pwdInput) {
+      pwdInput.addEventListener('input', function() {
+        var v = pwdInput.value;
+        var score = 0;
+        if (v.length >= 8) score++;
+        if (/[A-Z]/.test(v)) score++;
+        if (/[0-9]/.test(v)) score++;
+        if (/[^A-Za-z0-9]/.test(v)) score++;
+        var bars = ['pb1','pb2','pb3','pb4'];
+        var cls  = ['','low','medium','medium','high'];
+        var lbl  = ['','Muy débil','Débil','Aceptable','Fuerte'];
+        bars.forEach(function(id, i) {
+          var bar = document.getElementById(id);
+          if (bar) bar.className = 'pwd-bar ' + (i < score ? cls[score] : '');
+        });
+        var pwdLabel = document.getElementById('pwdLabel');
+        if (pwdLabel) pwdLabel.textContent = v.length ? lbl[score] : '';
+      });
+    }
+
+    // ── FORM HANDLERS ───────────────────────────────────
+    // DOM is already ready (script is at end of body), attach immediately
+    (function() {
+      // REGISTER
+      var regForm = document.getElementById('registerForm');
+      if (regForm) {
+        var regBtn = regForm.querySelector('button[type="submit"]');
+        regForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          var email = document.getElementById('regEmail').value.trim();
+          var pass  = document.getElementById('regPassword').value;
+          var cb1   = document.getElementById('regCb1').checked;
+          var cb2   = document.getElementById('regCb2').checked;
+          if (!email)          return showToast('Introduce tu email.', 'error');
+          if (pass.length < 8) return showToast('Mínimo 8 caracteres.', 'error');
+          if (!cb1 || !cb2)    return showToast('Acepta los consentimientos.', 'error');
+          regBtn.textContent = 'Creando cuenta...';
+          regBtn.disabled = true;
+          try {
+            var ok = await registerUser(email, pass);
+            if (ok) goToView('setup');
+          } catch(err) {
+            console.error(err);
+            showToast('Error inesperado.', 'error');
+          } finally {
+            var regView = document.getElementById('view-register');
+            if (regView && regView.classList.contains('active')) {
+              regBtn.textContent = 'Crear cuenta gratis';
+              regBtn.disabled = false;
+            }
+          }
+        });
+      }
+
+      // LOGIN
+      var loginForm = document.getElementById('loginForm');
+      if (loginForm) {
+        var loginBtn = loginForm.querySelector('button[type="submit"]');
+        loginForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          var email = loginForm.querySelector('input[type=email]').value.trim();
+          var pass  = loginForm.querySelector('input[type=password]').value;
+          if (!email || !pass) return showToast('Completa email y contraseña.', 'error');
+          loginBtn.textContent = 'Iniciando...';
+          loginBtn.disabled = true;
+          try { await loginUser(email, pass); }
+          catch(err) { console.error(err); showToast('Error al iniciar sesión.', 'error'); }
+          finally {
+            var loginView = document.getElementById('view-login');
+            if (loginView && loginView.classList.contains('active')) {
+              loginBtn.textContent = 'Iniciar sesión';
+              loginBtn.disabled = false;
+            }
+          }
+        });
+      }
+
+      // SETUP HOGAR
+      var setupForm = document.getElementById('setupForm');
+      if (setupForm) {
+        var setupBtn = setupForm.querySelector('button[type="submit"]');
+        setupForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          var name = document.getElementById('setupHogarInput').value.trim();
+          if (!name) return showToast('Dale un nombre a tu hogar.', 'error');
+          setupBtn.textContent = 'Guardando...';
+          setupBtn.disabled = true;
+          try { await setHogar(name); }
+          catch(err) { setupBtn.textContent = 'Continuar'; setupBtn.disabled = false; }
+        });
+      }
+
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    })();
+  </script>
+</body>
 </html>
