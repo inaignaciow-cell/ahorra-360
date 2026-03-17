@@ -195,7 +195,7 @@ function navigate(page) {
 }
 
 function openBill(id) {
-  currentBill = MOCK_BILLS.find(b=>b.id===id);
+  currentBill = getBills().find(b=>String(b.id)===String(id));
   if(!currentBill) return;
   navigate('detalle');
   renderDetalle();
@@ -330,13 +330,14 @@ function renderInicio() {
     </div>`).join('');
 
   // STATS
-  const totalSaving = MOCK_BILLS.reduce((s,b)=>s+b.saving,0);
-  const totalSpend  = MOCK_BILLS.reduce((s,b)=>s+b.amount,0);
+  const bills       = getBills();
+  const totalSaving = bills.reduce((s,b)=>s+(b.saving||0),0);
+  const totalSpend  = bills.reduce((s,b)=>s+(b.amount||0),0);
   const statsData = [
-    { label:'Ahorro potencial anual', value:totalSaving, prefix:'€', color:'var(--color-accent)', icon:'💰' },
-    { label:'Gasto mensual actual',   value:totalSpend,  prefix:'€', color:'var(--text-primary)', icon:'📊' },
-    { label:'Facturas analizadas',    value:MOCK_BILLS.length, prefix:'', color:'var(--color-primary)', icon:'📄' },
-    { label:'Score eficiencia',       value:62, prefix:'', suffix:'/100', color:'var(--color-teal)', icon:'🎯' },
+    { label:'Ahorro potencial anual', value:totalSaving,   prefix:'€', color:'var(--color-accent)',  icon:'💰' },
+    { label:'Gasto mensual actual',   value:totalSpend,    prefix:'€', color:'var(--text-primary)', icon:'📊' },
+    { label:'Facturas analizadas',    value:bills.length,  prefix:'', color:'var(--color-primary)', icon:'📄' },
+    { label:'Score eficiencia',       value:62,            prefix:'', suffix:'/100', color:'var(--color-teal)', icon:'🎯' },
   ];
   const sg = document.getElementById('statsGrid');
   if(sg) sg.innerHTML = statsData.map(s=>`
@@ -400,7 +401,7 @@ function getBills() {
 }
 
 // ── BANDEJA ───────────────────────────────
-let filteredBills = [...MOCK_BILLS];
+let filteredBills = [];
 let activeFilter = 'all';
 
 function renderBandeja() { filterBills(); }
@@ -420,27 +421,39 @@ function sortBills(by) {
 }
 function filterBills() {
   const q = (document.getElementById('searchInput')?.value||'').toLowerCase();
-  filteredBills = MOCK_BILLS.filter(b=>{
+  const source = getBills();
+  filteredBills = source.filter(b=>{
     const matchFilter = activeFilter==='all' || b.vertical===activeFilter;
-    const matchSearch = !q || b.name.toLowerCase().includes(q);
+    const matchSearch = !q || (b.name||'').toLowerCase().includes(q);
     return matchFilter && matchSearch;
   });
+  // Actualizar badge de la bandeja
+  const badge = document.getElementById('badgeBandeja');
+  if(badge) badge.textContent = source.length || '';
   renderBillsList(filteredBills);
 }
 function renderBillsList(bills) {
   const el = document.getElementById('billsList');
   if(!el) return;
-  if(!bills.length) { el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--text-muted)">No hay facturas con esos filtros</div>`; return; }
+  if(!bills.length) {
+    el.innerHTML=`<div style="text-align:center;padding:60px 40px;color:var(--text-muted)">
+      <div style="font-size:3rem;margin-bottom:12px">📂</div>
+      <div style="font-weight:700;font-size:1rem;margin-bottom:6px">Sin facturas aún</div>
+      <div style="font-size:.85rem">Arrastra una factura arriba para empezar a ahorrar ↑</div>
+    </div>`;
+    return;
+  }
+  const verticalColor = {luz:'#FEF3C7',gas:'#FEE2E2',telecos:'#EFF6FF',combustible:'#ECFDF5',seguros:'#F5F3FF'};
   el.innerHTML = bills.map(b=>`
-    <div class="bill-item animate-fade" onclick="openBill(${b.id})">
-      <div class="bill-icon" style="background:var(--color-${b.vertical}-bg)">${b.emoji}</div>
+    <div class="bill-item animate-fade" onclick="openBill('${b.id}')">
+      <div class="bill-icon" style="background:${verticalColor[b.vertical]||'#F3F4F6'}">${b.emoji||'📄'}</div>
       <div class="bill-info">
-        <div class="bill-name">${b.name}</div>
-        <div class="bill-sub">${new Date(b.date).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})} · ${b.status==='alerta'?'<span style="color:var(--color-warning)">⚠ Atención</span>':'<span style="color:var(--color-accent)">✓ Analizado</span>'}</div>
+        <div class="bill-name">${b.name||b.vertical}</div>
+        <div class="bill-sub">${b.date ? new Date(b.date).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : ''} · ${b.status==='alerta'?'<span style="color:var(--color-warning)">⚠ Atención</span>':'<span style="color:var(--color-accent)">✓ Analizado</span>'}</div>
       </div>
       <div style="text-align:right">
-        <div class="bill-amount">${fmt(b.amount)}</div>
-        ${b.saving>0?`<div class="bill-saving">Ahorra ${fmt(b.saving)}/año</div>`:''}
+        <div class="bill-amount">${fmt(b.amount||0)}</div>
+        ${(b.saving||0)>0?`<div class="bill-saving">Ahorra ${fmt(b.saving)}/año</div>`:''}
       </div>
       <span style="color:var(--text-muted);font-size:.8rem;margin-left:4px">›</span>
     </div>`).join('');
