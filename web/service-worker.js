@@ -1,7 +1,7 @@
 // Ahorra 360 - Service Worker v1.0
 // Caches static assets for offline use
 
-const CACHE_NAME = 'ahorra360-v1';
+const CACHE_NAME = 'ahorra360-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -41,35 +41,41 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: serve from cache, fallback to network
+// Fetch: Network first, fallback to cache
 self.addEventListener('fetch', (event) => {
   // Skip Supabase API calls — always go to network
   if (event.request.url.includes('supabase.co')) {
     return;
   }
 
+  // Skip api calls too
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request)
-        .then((networkResponse) => {
-          // Cache successful GET requests
-          if (networkResponse.ok && event.request.method === 'GET') {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
+    fetch(event.request)
+      .then((networkResponse) => {
+        // Cache successful GET requests
+        if (networkResponse.ok && event.request.method === 'GET') {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        // Network failed (offline), try the cache
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
           }
-          return networkResponse;
-        })
-        .catch(() => {
           // Offline fallback: return the main page
           if (event.request.destination === 'document') {
-            return caches.match('/index.html');
+             return caches.match('/index.html');
           }
         });
-    })
+      })
   );
 });

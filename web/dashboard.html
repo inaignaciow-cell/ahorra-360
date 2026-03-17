@@ -573,5 +573,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="app.js?v=5"></script>
+<script>
+  // Service Worker Update Check
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('[SW] New version available! Reloading...');
+            window.location.reload();
+          }
+        });
+      });
+    }).catch(err => console.warn('[SW] Registration failed', err));
+  }
+</script>
 </body>
 </html>
