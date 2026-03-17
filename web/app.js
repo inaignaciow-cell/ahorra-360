@@ -1,34 +1,19 @@
 /* ═══════════════════════════════════════════
-   AHORRA 360 — app.js
+   AHORRA 360 — app.js  v5
    ═══════════════════════════════════════════ */
 
 // ── SUPABASE ──────────────────────────────
 const SUPA_URL = 'https://gzkhrgmfbzkskmnselnz.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2hyZ21mYnprc2ttbnNlbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzAzNzYsImV4cCI6MjA4OTI0NjM3Nn0.t9yFb6qtHQCGfF4n9HOLU-uceIVUYXxDsAp3BSXbl50';
 
-// El SDK de Supabase CDN puede estar en distintos globales según la versión.
-// Iniciamos el cliente dentro de initApp() para garantizar que el CDN ha cargado.
-function initSupabaseClient() {
-  try {
-    // Variante 1: window.supabase.createClient (CDN v2 más común)
-    if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function')
-      return window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    // Variante 2: supabaseJs global
-    if (typeof window.supabaseJs !== 'undefined' && typeof window.supabaseJs.createClient === 'function')
-      return window.supabaseJs.createClient(SUPA_URL, SUPA_KEY);
-    // Variante 3: createClient directo en window
-    if (typeof window.createClient === 'function')
-      return window.createClient(SUPA_URL, SUPA_KEY);
-    return null;
-  } catch(e) { console.error('initSupabaseClient error:', e); return null; }
-}
+// supabase client — se inicializa en initApp() una vez el CDN UMD está cargado
+let supabase = null;
 
-const DEMO_MODE = false; // credenciales reales configuradas
-let _supa = null;
+const DEMO_MODE = false; // producción real
 
 // ── USER STATE ────────────────────────────
 let currentUser = null;
-let USER_BILLS  = [];     // array siempre — nunca null en producción
+let USER_BILLS  = []; // siempre array — nunca null
 
 
 // ── THEME ──────────────────────────────────
@@ -951,34 +936,32 @@ function launchConfetti() {
 async function initApp() {
   if(typeof lucide!=='undefined') lucide.createIcons();
 
-  // Inicializar cliente Supabase AHORA (el CDN ya está cargado)
-  _supa = initSupabaseClient();
-  if (!_supa) {
-    // No se pudo inicializar Supabase — lo indicamos y quedamos en modo vacío
-    console.error('[Ahorra360] No se pudo inicializar el cliente Supabase. Comprueba que el CDN esté cargando.');
-    setSidebarUser('Error de conexión', '', '!');
-    navigate('inicio');
+  // Inicializar cliente Supabase (CDN UMD ya cargado antes de este script)
+  if (window.supabase && window.supabase.createClient) {
+    supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  }
+  if (!supabase) {
+    console.error('[Ahorra360] Supabase CDN no disponible.');
+    window.location.href = 'auth.html';
     return;
   }
 
   try {
-    // Verificar sesión activa
-    const { data: { session }, error: sessionErr } = await _supa.auth.getSession();
+    const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
 
     if (sessionErr || !session) {
-      // Sin sesión — redirigir a login
       window.location.href = 'auth.html';
       return;
     }
 
     currentUser = session.user;
-    const name   = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
-    const email  = currentUser.email;
-    const init   = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const name  = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+    const email = currentUser.email;
+    const init  = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     setSidebarUser(name, email, init);
 
     // Cargar facturas del usuario desde Supabase
-    const { data: bills, error: billsErr } = await _supa
+    const { data: bills, error: billsErr } = await supabase
       .from('bills')
       .select('*')
       .eq('user_id', currentUser.id)
@@ -986,27 +969,24 @@ async function initApp() {
 
     if (billsErr) {
       console.warn('[Ahorra360] Error cargando bills:', billsErr.message);
-      // Si la tabla no existe aún, es posible que el schema no se haya ejecutado
       if (billsErr.message?.includes('does not exist')) {
-        showToast('⚠️ Ejecuta el SQL del archivo supabase-schema.sql en tu proyecto Supabase', 'error');
+        setTimeout(() => showToast('⚠️ Ejecuta supabase-schema.sql en tu proyecto Supabase', 'error'), 1000);
       }
       USER_BILLS = [];
     } else {
       USER_BILLS = (bills || []).map(mapSupabaseBill);
     }
 
-    // Navegar a la página correcta
+    // Navegar
     const hash = window.location.hash.replace('#','');
     navigate(hash && document.getElementById('page-'+hash) ? hash : 'inicio');
 
-    // Escuchar logout desde otra pestaña
-    _supa.auth.onAuthStateChange((event) => {
+    supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') window.location.href = 'auth.html';
     });
 
   } catch(err) {
-    console.error('[Ahorra360] Error crítico en initApp():', err);
-    // Redirigir a login — NO mostrar datos de demo
+    console.error('[Ahorra360] initApp error:', err);
     window.location.href = 'auth.html';
   }
 }
