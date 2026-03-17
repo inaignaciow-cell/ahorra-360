@@ -1,23 +1,35 @@
 /* ═══════════════════════════════════════════
-   AHORRA 360 — app.js  (Part 1: Core + Data)
+   AHORRA 360 — app.js
    ═══════════════════════════════════════════ */
 
 // ── SUPABASE ──────────────────────────────
-// ⚠️ REEMPLAZA ESTOS VALORES con los de tu proyecto Supabase:
-//    Dashboard → Settings → API
-const SUPA_URL = 'https://gzkhrgmfbzkskmnselnz.supabase.co';   // URL de tu proyecto Supabase
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2hyZ21mYnprc2ttbnNlbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzAzNzYsImV4cCI6MjA4OTI0NjM3Nn0.t9yFb6qtHQCGfF4n9HOLU-uceIVUYXxDsAp3BSXbl50'; // anon public key
-let supabase = null;
-const DEMO_MODE = SUPA_URL.includes('REEMPLAZA') || SUPA_KEY.includes('REEMPLAZA');
-if (!DEMO_MODE) {
+const SUPA_URL = 'https://gzkhrgmfbzkskmnselnz.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2hyZ21mYnprc2ttbnNlbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzAzNzYsImV4cCI6MjA4OTI0NjM3Nn0.t9yFb6qtHQCGfF4n9HOLU-uceIVUYXxDsAp3BSXbl50';
+
+// El SDK de Supabase CDN puede estar en distintos globales según la versión.
+// Iniciamos el cliente dentro de initApp() para garantizar que el CDN ha cargado.
+function initSupabaseClient() {
   try {
-    if (window.supabase) supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-  } catch(e) { console.warn('Supabase init failed', e); }
+    // Variante 1: window.supabase.createClient (CDN v2 más común)
+    if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function')
+      return window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    // Variante 2: supabaseJs global
+    if (typeof window.supabaseJs !== 'undefined' && typeof window.supabaseJs.createClient === 'function')
+      return window.supabaseJs.createClient(SUPA_URL, SUPA_KEY);
+    // Variante 3: createClient directo en window
+    if (typeof window.createClient === 'function')
+      return window.createClient(SUPA_URL, SUPA_KEY);
+    return null;
+  } catch(e) { console.error('initSupabaseClient error:', e); return null; }
 }
 
+const DEMO_MODE = false; // credenciales reales configuradas
+let _supa = null;
+
 // ── USER STATE ────────────────────────────
-let currentUser = null;   // sesión activa de Supabase
-let USER_BILLS  = null;   // null=cargando | []=vacío | [...]=datos reales
+let currentUser = null;
+let USER_BILLS  = [];     // array siempre — nunca null en producción
+
 
 // ── THEME ──────────────────────────────────
 const html = document.documentElement;
@@ -376,28 +388,26 @@ function renderInicio() {
 }
 
 // ── BILLS HELPERS ─────────────────────────
-// Convierte una fila de Supabase al formato interno de la app
 function mapSupabaseBill(row) {
-  const verticalEmoji = {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'};
+  const emojiMap = {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'};
   return {
-    id:           row.id,
-    vertical:     row.vertical,
-    emoji:        verticalEmoji[row.vertical] || '📄',
-    name:         row.provider_name || row.vertical,
-    amount:       parseFloat(row.amount) || 0,
-    date:         row.billing_date || row.created_at?.slice(0,10),
-    saving:       row.ai_saving    || 0,
-    status:       row.status       || 'analizado',
-    lines:        Array.isArray(row.ai_lines) ? row.ai_lines : [],
-    recs:         Array.isArray(row.ai_recs)  ? row.ai_recs  : [],
-    chatContext:  row.chat_context || row.provider_name || ''
+    id:          String(row.id),
+    vertical:    row.vertical || 'luz',
+    emoji:       emojiMap[row.vertical] || '📄',
+    name:        row.provider_name || row.vertical,
+    amount:      parseFloat(row.amount) || 0,
+    date:        row.billing_date || row.created_at?.slice(0,10),
+    saving:      row.ai_saving    || 0,
+    status:      row.status       || 'analizado',
+    lines:       Array.isArray(row.ai_lines) ? row.ai_lines : [],
+    recs:        Array.isArray(row.ai_recs)  ? row.ai_recs  : [],
+    chatContext: row.chat_context || ''
   };
 }
 
-// Devuelve los bills activos (reales o mock según modo)
+// getBills() — NUNCA devuelve MOCK_BILLS si hay credenciales reales
 function getBills() {
-  if (!DEMO_MODE && USER_BILLS !== null) return USER_BILLS;
-  return MOCK_BILLS; // fallback demo
+  return USER_BILLS; // siempre el array real (peut être vide)
 }
 
 // ── BANDEJA ───────────────────────────────
@@ -941,57 +951,63 @@ function launchConfetti() {
 async function initApp() {
   if(typeof lucide!=='undefined') lucide.createIcons();
 
-  // ── MODO DEMO ─────────────────────────
-  if (DEMO_MODE) {
-    console.info('[Ahorra360] Modo demo — configura SUPA_URL y SUPA_KEY en app.js para conectar Supabase.');
-    setSidebarUser('Usuario Demo','demo@ahorra360.es','UD');
-    const hash = window.location.hash.replace('#','');
-    navigate(hash && document.getElementById('page-'+hash) ? hash : 'inicio');
+  // Inicializar cliente Supabase AHORA (el CDN ya está cargado)
+  _supa = initSupabaseClient();
+  if (!_supa) {
+    // No se pudo inicializar Supabase — lo indicamos y quedamos en modo vacío
+    console.error('[Ahorra360] No se pudo inicializar el cliente Supabase. Comprueba que el CDN esté cargando.');
+    setSidebarUser('Error de conexión', '', '!');
+    navigate('inicio');
     return;
   }
 
-  // ── MODO REAL (Supabase conectado) ────
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error || !session) {
+    // Verificar sesión activa
+    const { data: { session }, error: sessionErr } = await _supa.auth.getSession();
+
+    if (sessionErr || !session) {
+      // Sin sesión — redirigir a login
       window.location.href = 'auth.html';
       return;
     }
-    currentUser = session.user;
 
-    // Establecer sidebar con datos reales
-    const name  = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
-    const email = currentUser.email;
-    const init  = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    currentUser = session.user;
+    const name   = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+    const email  = currentUser.email;
+    const init   = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     setSidebarUser(name, email, init);
 
     // Cargar facturas del usuario desde Supabase
-    const { data: bills, error: billsErr } = await supabase
+    const { data: bills, error: billsErr } = await _supa
       .from('bills')
       .select('*')
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false });
 
-    if (!billsErr && bills) {
-      USER_BILLS = bills.map(mapSupabaseBill);
-    } else {
+    if (billsErr) {
+      console.warn('[Ahorra360] Error cargando bills:', billsErr.message);
+      // Si la tabla no existe aún, es posible que el schema no se haya ejecutado
+      if (billsErr.message?.includes('does not exist')) {
+        showToast('⚠️ Ejecuta el SQL del archivo supabase-schema.sql en tu proyecto Supabase', 'error');
+      }
       USER_BILLS = [];
+    } else {
+      USER_BILLS = (bills || []).map(mapSupabaseBill);
     }
 
-    // Redirigir a la página correcta
+    // Navegar a la página correcta
     const hash = window.location.hash.replace('#','');
     navigate(hash && document.getElementById('page-'+hash) ? hash : 'inicio');
 
-    // Escuchar cambios de sesión (logout desde otra pestaña)
-    supabase.auth.onAuthStateChange((event) => {
+    // Escuchar logout desde otra pestaña
+    _supa.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') window.location.href = 'auth.html';
     });
 
   } catch(err) {
-    console.error('Error iniciando app:', err);
-    // Si falla, mostrar demo
-    setSidebarUser('Usuario Demo','demo@ahorra360.es','UD');
-    navigate('inicio');
+    console.error('[Ahorra360] Error crítico en initApp():', err);
+    // Redirigir a login — NO mostrar datos de demo
+    window.location.href = 'auth.html';
   }
 }
 
@@ -1005,3 +1021,4 @@ function setSidebarUser(name, email, initials) {
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
+
