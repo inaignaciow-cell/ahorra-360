@@ -6,7 +6,6 @@
 
 const OpenAI = require('openai');
 const pdfParse = require('pdf-parse');
-const { createClient } = require('@supabase/supabase-js');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -81,25 +80,6 @@ async function analyzeText(text) {
   return JSON.parse(content);
 }
 
-async function saveToSupabase(result, userId) {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) return null;
-  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-  const { data, error } = await supabase.from('bills').insert({
-    user_id: userId,
-    vertical: result.vertical,
-    provider_name: result.provider_name,
-    amount: result.amount,
-    billing_date: result.billing_date,
-    status: 'analizado',
-    ai_lines: result.lines,
-    ai_recs: result.recs,
-    ai_saving: result.saving,
-    chat_context: result.chatContext
-  }).select().single();
-  if (error) console.error('Supabase save error:', error);
-  return data;
-}
-
 module.exports = async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -133,12 +113,6 @@ module.exports = async function handler(req, res) {
       result = await analyzeImage(fileBase64, mimeType);
     } else {
       return res.status(400).json({ error: 'Formato no soportado. Usa PDF, JPG o PNG.' });
-    }
-
-    // Guardar en Supabase si hay userId
-    if (userId) {
-      const saved = await saveToSupabase(result, userId);
-      if (saved) result.id = saved.id;
     }
 
     return res.status(200).json(result);

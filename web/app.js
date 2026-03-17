@@ -525,26 +525,38 @@ async function processUpload(file) {
     setStep('Procesando resultados...');
     const result = await resp.json();
 
-    // Añadir al array local y refrescar la bandeja
-    const newBill = {
-      id:          result.id || Date.now(),
-      vertical:    result.vertical,
-      emoji:       {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'}[result.vertical] || '📄',
-      name:        result.provider_name,
-      amount:      result.amount,
-      date:        result.billing_date || new Date().toISOString().slice(0,10),
-      saving:      result.saving,
-      status:      'analizado',
-      lines:       result.lines,
-      recs:        result.recs,
-      chatContext: result.chatContext
+    setStep('Guardando en tu cuenta...');
+    // Formatear fecha para evitar errores de sintaxis "undefined" en Postgres
+    let bDate = result.billing_date;
+    if (!bDate || typeof bDate !== 'string' || bDate.length !== 10) bDate = new Date().toISOString().slice(0,10);
+
+    const dbBill = {
+      user_id:       currentUser.id,
+      vertical:      result.vertical || 'luz',
+      provider_name: result.provider_name || 'Desconocido',
+      amount:        parseFloat(result.amount) || 0,
+      billing_date:  bDate,
+      status:        'analizado',
+      ai_lines:      result.lines || [],
+      ai_recs:       result.recs || [],
+      ai_saving:     result.saving || 0,
+      chat_context:  result.chatContext || ''
     };
 
-    if (USER_BILLS !== null) USER_BILLS.unshift(newBill);
-    showToast(`✓ Factura de ${result.provider_name} analizada — €${result.saving}/año de ahorro potencial`,'ok');
+    const { data: savedBill, error: saveErr } = await supabase
+      .from('bills')
+      .insert(dbBill)
+      .select()
+      .single();
+
+    if (saveErr) throw new Error('No se pudo guardar la factura: ' + saveErr.message);
+
+    const newBill = mapSupabaseBill(savedBill);
+    if (USER_BILLS) USER_BILLS.unshift(newBill);
+
+    showToast(`✓ Factura de ${newBill.name} agregada. Ahorro potencial: ${fmt(newBill.saving)}/año`,'ok');
     resetUI();
     renderBandeja();
-    // Actualizar stats de inicio también
     renderInicio();
 
   } catch(err) {
