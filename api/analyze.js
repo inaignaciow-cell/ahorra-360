@@ -62,7 +62,9 @@ async function analyzeImage(base64, mimeType) {
       }
     ]
   });
-  return JSON.parse(response.choices[0].message.content.trim());
+  let content = response.choices[0].message.content.trim();
+  if (content.startsWith('```json')) content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  return JSON.parse(content);
 }
 
 async function analyzeText(text) {
@@ -74,7 +76,9 @@ async function analyzeText(text) {
       { role: 'user', content: `Analiza esta factura y devuelve el JSON solicitado.\n\nTEXTO DE LA FACTURA:\n${text.slice(0, 8000)}` }
     ]
   });
-  return JSON.parse(response.choices[0].message.content.trim());
+  let content = response.choices[0].message.content.trim();
+  if (content.startsWith('```json')) content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  return JSON.parse(content);
 }
 
 async function saveToSupabase(result, userId) {
