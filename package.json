@@ -1,0 +1,10 @@
+{
+  "name": "ahorra-360",
+  "version": "2.0.0",
+  "description": "Ahorra 360 — API serverless para análisis de facturas con IA",
+  "dependencies": {
+    "openai": "^4.28.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "pdf-parse": "^1.1.1"
+  }
+}

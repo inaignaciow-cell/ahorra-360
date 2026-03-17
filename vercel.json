@@ -1,59 +1,36 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "*.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "*.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "*.css",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "*.json",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "*.png",
-      "use": "@vercel/static"
-    }
+    { "src": "api/*.js", "use": "@vercel/node" },
+    { "src": "web/**/*", "use": "@vercel/static" }
   ],
-  "rewrites": [
-    {
-      "source": "/app",
-      "destination": "/dashboard.html"
-    }
+  "routes": [
+    { "src": "/api/analyze",    "dest": "/api/analyze.js" },
+    { "src": "/api/comparador", "dest": "/api/comparador.js" },
+    { "src": "/styles/(.*)",    "dest": "/web/styles/$1" },
+    { "src": "/app\\.js",       "dest": "/web/app.js" },
+    { "src": "/manifest\\.json","dest": "/web/manifest.json" },
+    { "src": "/service-worker\\.js", "dest": "/web/service-worker.js" },
+    { "src": "/icon-(.*)\\.png","dest": "/web/icon-$1.png" },
+    { "src": "/app",            "dest": "/web/dashboard.html" },
+    { "src": "/auth",           "dest": "/web/auth.html" },
+    { "src": "/dashboard\\.html","dest": "/web/dashboard.html" },
+    { "src": "/auth\\.html",    "dest": "/web/auth.html" },
+    { "src": "/",               "dest": "/web/index.html" },
+    { "src": "/(.*)\\.html",    "dest": "/web/$1.html" }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        }
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options",        "value": "DENY" },
+        { "key": "X-XSS-Protection",       "value": "1; mode=block" }
       ]
     },
     {
       "source": "/service-worker.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     }
   ]
 }

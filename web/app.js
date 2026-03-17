@@ -3,12 +3,21 @@
    ═══════════════════════════════════════════ */
 
 // ── SUPABASE ──────────────────────────────
-const SUPA_URL = 'https://your-project.supabase.co';
-const SUPA_KEY = 'your-anon-key';
+// ⚠️ REEMPLAZA ESTOS VALORES con los de tu proyecto Supabase:
+//    Dashboard → Settings → API
+const SUPA_URL = 'REEMPLAZA_CON_TU_SUPABASE_URL';   // ej: https://xxxx.supabase.co
+const SUPA_KEY = 'REEMPLAZA_CON_TU_SUPABASE_ANON_KEY'; // empieza por eyJ...
 let supabase = null;
-try {
-  if (window.supabase) supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-} catch(e) {}
+const DEMO_MODE = SUPA_URL.includes('REEMPLAZA') || SUPA_KEY.includes('REEMPLAZA');
+if (!DEMO_MODE) {
+  try {
+    if (window.supabase) supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  } catch(e) { console.warn('Supabase init failed', e); }
+}
+
+// ── USER STATE ────────────────────────────
+let currentUser = null;   // sesión activa de Supabase
+let USER_BILLS  = null;   // null=cargando | []=vacío | [...]=datos reales
 
 // ── THEME ──────────────────────────────────
 const html = document.documentElement;
@@ -365,6 +374,31 @@ function renderInicio() {
     </div>`).join('');
 }
 
+// ── BILLS HELPERS ─────────────────────────
+// Convierte una fila de Supabase al formato interno de la app
+function mapSupabaseBill(row) {
+  const verticalEmoji = {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'};
+  return {
+    id:           row.id,
+    vertical:     row.vertical,
+    emoji:        verticalEmoji[row.vertical] || '📄',
+    name:         row.provider_name || row.vertical,
+    amount:       parseFloat(row.amount) || 0,
+    date:         row.billing_date || row.created_at?.slice(0,10),
+    saving:       row.ai_saving    || 0,
+    status:       row.status       || 'analizado',
+    lines:        Array.isArray(row.ai_lines) ? row.ai_lines : [],
+    recs:         Array.isArray(row.ai_recs)  ? row.ai_recs  : [],
+    chatContext:  row.chat_context || row.provider_name || ''
+  };
+}
+
+// Devuelve los bills activos (reales o mock según modo)
+function getBills() {
+  if (!DEMO_MODE && USER_BILLS !== null) return USER_BILLS;
+  return MOCK_BILLS; // fallback demo
+}
+
 // ── BANDEJA ───────────────────────────────
 let filteredBills = [...MOCK_BILLS];
 let activeFilter = 'all';
@@ -422,24 +456,94 @@ function handleDrop(e) {
 function handleFileSelect(input) {
   if(input.files[0]) processUpload(input.files[0]);
 }
-function processUpload(file) {
-  const zone = document.getElementById('uploadZone');
-  const status = document.getElementById('uploadStatus');
-  const steps = ['Leyendo documento...','Extrayendo datos con IA...','Identificando conceptos...','Calculando ahorro potencial...','¡Análisis completo! ✓'];
-  let i = 0;
-  status.innerHTML = `<div style="font-size:1.5rem;margin-bottom:8px;animation:spin 1s linear infinite">⚙️</div><div style="font-weight:700;color:var(--color-primary)" id="uploadStep">${steps[0]}</div>`;
-  const iv = setInterval(()=>{
-    i++;
-    const stepEl = document.getElementById('uploadStep');
-    if(stepEl) stepEl.textContent = steps[Math.min(i,steps.length-1)];
-    if(i>=steps.length-1){
-      clearInterval(iv);
-      setTimeout(()=>{
-        showToast('Factura analizada por IA ✓','ok');
-        status.innerHTML = `<div style="font-size:2rem;margin-bottom:8px">📄</div><div style="font-weight:700;color:var(--text-primary)">Arrastra tu factura aquí</div><div style="font-size:.8rem;color:var(--text-muted);margin-top:4px">PDF, foto o imagen · La IA la analiza en segundos</div>`;
-      },800);
+
+async function processUpload(file) {
+  const status  = document.getElementById('uploadStatus');
+  const resetUI = () => {
+    if(status) status.innerHTML = `<div style="font-size:2rem;margin-bottom:8px">📄</div><div style="font-weight:700;color:var(--text-primary)">Arrastra tu factura aquí</div><div style="font-size:.8rem;color:var(--text-muted);margin-top:4px">PDF, foto o imagen · La IA la analiza en segundos</div>`;
+  };
+
+  const ALLOWED = ['application/pdf','image/jpeg','image/png','image/webp','image/heic'];
+  if (!ALLOWED.includes(file.type)) {
+    showToast('Formato no soportado. Usa PDF, JPG o PNG.','error'); return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('El archivo es demasiado grande (máx 10 MB).','error'); return;
+  }
+
+  // ── MODO DEMO (sin Supabase) ───────────────────────────────
+  if (DEMO_MODE) {
+    const steps = ['Leyendo documento...','Extrayendo datos con IA...','Identificando conceptos...','Calculando ahorro potencial...','¡Análisis completo! ✓'];
+    let i = 0;
+    if(status) status.innerHTML = `<div style="font-size:1.5rem;margin-bottom:8px;animation:spin 1s linear infinite">⚙️</div><div style="font-weight:700;color:var(--color-primary)" id="uploadStep">${steps[0]}</div>`;
+    const iv = setInterval(()=>{
+      i++;
+      const stepEl = document.getElementById('uploadStep');
+      if(stepEl) stepEl.textContent = steps[Math.min(i,steps.length-1)];
+      if(i>=steps.length-1){ clearInterval(iv); setTimeout(()=>{ showToast('Demo: factura analizada ✓','ok'); resetUI(); },800); }
+    },900);
+    return;
+  }
+
+  // ── MODO REAL (con Supabase + OpenAI) ─────────────────────
+  const setStep = (msg) => {
+    if(status) status.innerHTML = `<div style="font-size:1.5rem;margin-bottom:8px;animation:spin 1s linear infinite">⚙️</div><div style="font-weight:700;color:var(--color-primary)">${msg}</div>`;
+  };
+  setStep('Leyendo archivo...');
+
+  try {
+    // Convertir a base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    setStep('Enviando a la IA... (puede tardar 10-20s)');
+
+    const body = { fileBase64: base64, mimeType: file.type, userId: currentUser?.id };
+    const resp = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || `Error ${resp.status}`);
     }
-  },900);
+
+    setStep('Procesando resultados...');
+    const result = await resp.json();
+
+    // Añadir al array local y refrescar la bandeja
+    const newBill = {
+      id:          result.id || Date.now(),
+      vertical:    result.vertical,
+      emoji:       {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'}[result.vertical] || '📄',
+      name:        result.provider_name,
+      amount:      result.amount,
+      date:        result.billing_date || new Date().toISOString().slice(0,10),
+      saving:      result.saving,
+      status:      'analizado',
+      lines:       result.lines,
+      recs:        result.recs,
+      chatContext: result.chatContext
+    };
+
+    if (USER_BILLS !== null) USER_BILLS.unshift(newBill);
+    showToast(`✓ Factura de ${result.provider_name} analizada — €${result.saving}/año de ahorro potencial`,'ok');
+    resetUI();
+    renderBandeja();
+    // Actualizar stats de inicio también
+    renderInicio();
+
+  } catch(err) {
+    console.error('Upload error:', err);
+    showToast('Error: ' + err.message, 'error');
+    resetUI();
+  }
 }
 
 // ── DETALLE ───────────────────────────────
@@ -768,21 +872,27 @@ function updateEnergyLabel() {
 
 // ── PERFIL ────────────────────────────────
 function renderPerfil() {
-  const email = 'demo@ahorra360.es';
-  const name  = 'Usuario Demo';
+  // Datos reales del usuario autenticado (o demo)
+  const user   = currentUser;
+  const email  = user?.email || 'demo@ahorra360.es';
+  const name   = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario Demo';
   const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
   const av = document.getElementById('profileAvatar');
   if(av) av.textContent = initials;
-  const pn = document.getElementById('profileName'); if(pn) pn.textContent=name;
+  const pn = document.getElementById('profileName');  if(pn) pn.textContent=name;
   const pe = document.getElementById('profileEmail'); if(pe) pe.textContent=email;
   const pNombre = document.getElementById('pNombre'); if(pNombre) pNombre.value=name;
   const pEmail  = document.getElementById('pEmail');  if(pEmail)  pEmail.value=email;
 
+  const bills    = getBills();
+  const savings  = bills.reduce((s,b)=>s+(b.saving||0),0);
+  const recs     = bills.reduce((s,b)=>s+(b.recs?.length||0),0);
   const statsData = [
-    {label:'Facturas analizadas',value:'3'},
-    {label:'Ahorro conseguido',  value:'€0'},
-    {label:'Recomendaciones',    value:'3'},
-    {label:'Score actual',       value:'62/100'},
+    {label:'Facturas analizadas', value: bills.length},
+    {label:'Ahorro potencial',    value: '€'+savings+'/año'},
+    {label:'Recomendaciones',     value: recs},
+    {label:'Score actual',        value: '62/100'},
   ];
   const ps = document.getElementById('profileStats');
   if(ps) ps.innerHTML = statsData.map(s=>`
@@ -790,6 +900,16 @@ function renderPerfil() {
       <div style="font-size:.7rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em">${s.label}</div>
       <div style="font-size:1.2rem;font-weight:800;margin-top:4px">${s.value}</div>
     </div>`).join('');
+
+  // Botón de cerrar sesión
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(logoutBtn && !logoutBtn.dataset.bound) {
+    logoutBtn.dataset.bound = '1';
+    logoutBtn.addEventListener('click', async () => {
+      if(supabase) await supabase.auth.signOut();
+      window.location.href = 'auth.html';
+    });
+  }
 }
 
 // ── CONFETTI ──────────────────────────────
@@ -805,18 +925,70 @@ function launchConfetti() {
 }
 
 // ── INIT ──────────────────────────────────
-document.addEventListener('DOMContentLoaded', ()=>{
+async function initApp() {
   if(typeof lucide!=='undefined') lucide.createIcons();
-  // Sidebar username
+
+  // ── MODO DEMO ─────────────────────────
+  if (DEMO_MODE) {
+    console.info('[Ahorra360] Modo demo — configura SUPA_URL y SUPA_KEY en app.js para conectar Supabase.');
+    setSidebarUser('Usuario Demo','demo@ahorra360.es','UD');
+    const hash = window.location.hash.replace('#','');
+    navigate(hash && document.getElementById('page-'+hash) ? hash : 'inicio');
+    return;
+  }
+
+  // ── MODO REAL (Supabase conectado) ────
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session) {
+      window.location.href = 'auth.html';
+      return;
+    }
+    currentUser = session.user;
+
+    // Establecer sidebar con datos reales
+    const name  = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+    const email = currentUser.email;
+    const init  = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    setSidebarUser(name, email, init);
+
+    // Cargar facturas del usuario desde Supabase
+    const { data: bills, error: billsErr } = await supabase
+      .from('bills')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+
+    if (!billsErr && bills) {
+      USER_BILLS = bills.map(mapSupabaseBill);
+    } else {
+      USER_BILLS = [];
+    }
+
+    // Redirigir a la página correcta
+    const hash = window.location.hash.replace('#','');
+    navigate(hash && document.getElementById('page-'+hash) ? hash : 'inicio');
+
+    // Escuchar cambios de sesión (logout desde otra pestaña)
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') window.location.href = 'auth.html';
+    });
+
+  } catch(err) {
+    console.error('Error iniciando app:', err);
+    // Si falla, mostrar demo
+    setSidebarUser('Usuario Demo','demo@ahorra360.es','UD');
+    navigate('inicio');
+  }
+}
+
+function setSidebarUser(name, email, initials) {
   const sn = document.getElementById('sidebarName');
   const se = document.getElementById('sidebarEmail');
   const sa = document.getElementById('sidebarAvatar');
-  if(sn) sn.textContent='Usuario Demo';
-  if(se) se.textContent='demo@ahorra360.es';
-  if(sa) sa.textContent='UD';
-  // Start on inicio
-  navigate('inicio');
-  // Handle URL hash
-  const hash = window.location.hash.replace('#','');
-  if(hash && document.getElementById('page-'+hash)) navigate(hash);
-});
+  if(sn) sn.textContent = name;
+  if(se) se.textContent = email;
+  if(sa) sa.textContent = initials;
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
