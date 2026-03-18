@@ -6,8 +6,8 @@
 const SUPA_URL = 'https://gzkhrgmfbzkskmnselnz.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2hyZ21mYnprc2ttbnNlbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzAzNzYsImV4cCI6MjA4OTI0NjM3Nn0.t9yFb6qtHQCGfF4n9HOLU-uceIVUYXxDsAp3BSXbl50';
 
-// supabase client — se inicializa en initApp() una vez el CDN UMD está cargado
-let supabase = null;
+// supabase client — se inicializa en initApp()
+let sbClient = null;
 
 const DEMO_MODE = false; // producción real
 
@@ -363,8 +363,8 @@ async function saveHogar() {
   const tipo     = document.getElementById('hTipo')?.value;
   const zona     = document.getElementById('hZona')?.value;
   try {
-    if (supabase && currentUser) {
-      const { error } = await supabase.from('profiles').upsert({
+    if (sbClient && currentUser) {
+      const { error } = await sbClient.from('profiles').upsert({
         id: currentUser.id,
         hogar_nombre: nombre || null,
         hogar_cp:     cp || null,
@@ -1135,7 +1135,7 @@ function renderPerfil() {
   if(logoutBtn && !logoutBtn.dataset.bound) {
     logoutBtn.dataset.bound = '1';
     logoutBtn.addEventListener('click', async () => {
-      if(supabase) await supabase.auth.signOut();
+      if(sbClient) await sbClient.auth.signOut();
       window.location.href = 'auth.html';
     });
   }
@@ -1200,16 +1200,17 @@ async function initApp() {
 
   // Inicializar cliente Supabase (CDN UMD ya cargado antes de este script)
   if (window.supabase && window.supabase.createClient) {
-    supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    sbClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
   }
-  if (!supabase) {
+  if (!sbClient) {
     console.error('[Ahorra360] Supabase CDN no disponible.');
     window.location.href = 'auth.html';
     return;
   }
 
+  // ── MODO REAL (Supabase conectado) ────
   try {
-    const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionErr } = await sbClient.auth.getSession();
 
     if (sessionErr || !session) {
       window.location.href = 'auth.html';
@@ -1223,7 +1224,7 @@ async function initApp() {
     setSidebarUser(name, email, init);
 
     // Cargar facturas del usuario desde Supabase
-    const { data: bills, error: billsErr } = await supabase
+    const { data: bills, error: billsErr } = await sbClient
       .from('bills')
       .select('*')
       .eq('user_id', currentUser.id)
@@ -1240,7 +1241,8 @@ async function initApp() {
     const hash = window.location.hash.replace('#','');
     navigate(hash && document.getElementById('page-'+hash) ? hash : 'inicio');
 
-    supabase.auth.onAuthStateChange((event) => {
+    // Escuchar cambios de sesión (logout desde otra pestaña)
+    sbClient.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') window.location.href = 'auth.html';
     });
 
