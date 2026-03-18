@@ -1257,6 +1257,15 @@ function renderPerfil() {
   }
 }
 
+// FUMADA FASE 5 LÓGICA
+function joinCoopAuction(btn) {
+  btn.innerHTML = '¡Inscrito en el Grupo de 343 usuarios! 🎉';
+  btn.style.background = '#10B981';
+  btn.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)';
+  showToast('Te notificaremos cuando termine la subasta. ✅', 'ok');
+  launchConfetti();
+}
+
 // ── CONFETTI ──────────────────────────────
 function launchConfetti() {
   const colors=['#1641B0','#059669','#F59E0B','#EF4444','#8B5CF6'];
