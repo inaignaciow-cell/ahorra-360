@@ -825,37 +825,51 @@ function completeRec(el, title) {
 }
 
 // ── CHAT ──────────────────────────────────
-const AI_RESPONSES = {
-  'subió': 'Esta factura subió principalmente por el incremento en el precio de la energía en hora punta (+22% vs. el mes anterior). Tu consumo en P1 aumentó de 180 a 234 kWh, posiblemente por el frío. 💡 Solución: mueve lavadora y lavavajillas a la franja de 22h-8h.',
-  'tarifa': 'Basándonos en tu perfil (234 kWh/mes, mayoritariamente en P1), la tarifa indexada PVPC-plus te beneficiaría en verano pero podría salirte cara en invierno. Te recomiendo Holaluz Clara con precio fijo para tu nivel de consumo.',
-  'promo': 'Tu descuento de fidelización de Orange de €5/mes caduca el **04/04/2026**. Si no actúas en 18 días, tu factura sube a €79,99/mes. Mejor alternativa: Digi Fibra 1Gb + 50GB por €20/mes.',
-  'potencia': 'Tu potencia contratada es 3.45 kW. Según los datos de tu contador, nunca has superado 2.8 kW en el último año. Podrías bajar a 2.3 kW y ahorrar €45/año sin riesgo de corte.',
-  'default': 'Excelente pregunta. Basándome en los datos de tu factura ({context}), aquí está mi análisis: este concepto tiene un potencial de optimización. ¿Te gustaría que te detalle las opciones disponibles?'
-};
-
 function askChat(question) {
   const input = document.getElementById('chatInput');
   if(input) { input.value = question; sendChat(); }
 }
-function sendChat() {
+async function sendChat() {
   const input = document.getElementById('chatInput');
   const msgs  = document.getElementById('chatMessages');
   if(!input || !msgs || !input.value.trim()) return;
   const q = input.value.trim();
   input.value = '';
+  
+  // Mensaje del usuario
   msgs.innerHTML += `<div class="chat-bubble user">${q}</div>`;
   msgs.scrollTop = msgs.scrollHeight;
 
-  setTimeout(()=>{
-    const lq = q.toLowerCase();
-    let ans = AI_RESPONSES['default'];
-    for(const [k,v] of Object.entries(AI_RESPONSES)) {
-      if(k!=='default' && lq.includes(k)) { ans=v; break; }
-    }
-    if(currentBill) ans = ans.replace('{context}', currentBill.chatContext);
-    msgs.innerHTML += `<div class="chat-bubble ai">${ans}</div>`;
-    msgs.scrollTop = msgs.scrollHeight;
-  }, 800);
+  // Placeholder de carga
+  const idBurbuja = 'ai-msg-' + Date.now();
+  msgs.innerHTML += `<div class="chat-bubble ai" id="${idBurbuja}">
+    <span style="display:inline-block;animation:spin 1s linear infinite">✨</span> Pensando...
+  </div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: q,
+        billContext: currentBill
+      })
+    });
+    
+    if (!res.ok) throw new Error('Error al conectar con la IA');
+    
+    const data = await res.json();
+    
+    // Función simple de markdown a HTML para negritas
+    const htmlText = data.reply.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\\n/g, '<br>');
+    
+    document.getElementById(idBurbuja).innerHTML = htmlText;
+  } catch (err) {
+    document.getElementById(idBurbuja).innerHTML = '<span style="color:var(--color-danger)">Ups, hubo un error de conexión con la IA. Inténtalo de nuevo.</span>';
+  }
+  
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 // ── COMPARADOR ────────────────────────────
