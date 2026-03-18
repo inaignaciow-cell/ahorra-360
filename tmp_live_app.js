@@ -189,49 +189,6 @@ function navigate(page) {
   if(page==='hogar')      renderHogar();
   if(page==='perfil')     renderPerfil();
   if(typeof lucide !== 'undefined') setTimeout(()=>lucide.createIcons(),50);
-
-  // Mostrar tutorial inteligente si es la primera vez
-  setTimeout(() => showTutorial(page), 400);
-}
-
-// ── ONBOARDING TUTORIALS ──────────────────
-function showTutorial(page) {
-  const viewed = JSON.parse(localStorage.getItem('ahorra360-tutorials') || '{}');
-  if (viewed[page]) return; // Ya lo vio
-
-  const tuts = {
-    inicio: { title: '¡Bienvenido a tu Panel!', text: 'Aquí verás un resumen rápido de tu salud financiera y las alertas más importantes que nuestra IA encuentre para ti.' },
-    bandeja: { title: 'Tu buzón digital', text: 'Sube tus facturas arrastrándolas o toma una foto desde el móvil. La IA extraerá todos los datos al instante para empezar a buscar ahorros.' },
-    comparador: { title: 'El Comparador Inteligente', text: 'No busques tú. La IA compara tus facturas automáticamente contra todo el mercado de luz, gas y telecos vivos.' },
-    hogar: { title: 'Configura tu Casa', text: 'Añade los m² y cuántos vivís para que la IA sepa decirte si estás consumiendo más de lo normal.' },
-    alertas: { title: 'Alertas tempranas', text: 'Nuestra IA lee la letra pequeña por ti, avisándote si una promoción caduca pronto o si te han colado un recargo injustificado.' }
-  };
-
-  const t = tuts[page];
-  if (!t) return;
-
-  // Marcar como visto
-  viewed[page] = true;
-  localStorage.setItem('ahorra360-tutorials', JSON.stringify(viewed));
-
-  // Crear el modal
-  const overlay = document.createElement('div');
-  overlay.className = 'animate-fade-in';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
-  
-  const modal = document.createElement('div');
-  modal.className = 'animate-slide-up';
-  modal.style.cssText = 'background:var(--bg-surface);padding:30px;border-radius:24px;width:100%;max-width:400px;text-align:center;box-shadow:var(--shadow-xl);border:1px solid var(--border)';
-  
-  modal.innerHTML = `
-    <div style="width:60px;height:60px;background:var(--ai-gradient);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:white;font-size:24px">✨</div>
-    <h3 style="font-family:var(--font-heading);font-weight:800;font-size:1.3rem;margin-bottom:12px;color:var(--text-primary)">${t.title}</h3>
-    <p style="color:var(--text-secondary);font-size:0.95rem;line-height:1.5;margin-bottom:24px">${t.text}</p>
-    <button class="btn btn-primary btn-lg w-full" style="border-radius:99px" onclick="this.parentElement.parentElement.remove()">¡Entendido!</button>
-  `;
-  
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
 }
 
 function openBill(id) {
@@ -336,108 +293,10 @@ async function setHogar(name) {
     else window.location.href='dashboard.html';
   }, 800);
 }
-async function saveProfile() {
-  const name  = document.getElementById('pNombre')?.value?.trim();
-  if (!name) return showToast('Introduce tu nombre', 'error');
-  try {
-    if (supabase && currentUser) {
-      const { error } = await supabase.auth.updateUser({ data: { full_name: name } });
-      if (error) throw error;
-    }
-    // Update sidebar & avatar immediately
-    const init = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    setSidebarUser(name, currentUser?.email || '', init);
-    const av = document.getElementById('profileAvatar'); if(av) av.textContent = init;
-    const pn = document.getElementById('profileName');  if(pn) pn.textContent = name;
-    showToast('Perfil guardado ✓', 'ok');
-  } catch(err) {
-    showToast('Error al guardar: ' + err.message, 'error');
-  }
-}
-
-async function saveHogar() {
-  const nombre   = document.getElementById('hNombre')?.value?.trim();
-  const cp       = document.getElementById('hCP')?.value?.trim();
-  const m2       = parseInt(document.getElementById('hM2')?.value) || null;
-  const personas = parseInt(document.getElementById('hPersonas')?.value) || null;
-  const tipo     = document.getElementById('hTipo')?.value;
-  const zona     = document.getElementById('hZona')?.value;
-  try {
-    if (supabase && currentUser) {
-      const { error } = await supabase.from('profiles').upsert({
-        id: currentUser.id,
-        hogar_nombre: nombre || null,
-        hogar_cp:     cp || null,
-        hogar_m2:     m2,
-        hogar_personas: personas,
-        hogar_tipo:   tipo,
-        hogar_zona:   zona,
-        updated_at:   new Date().toISOString()
-      });
-      if (error) throw error;
-    }
-    showToast('Hogar guardado ✓', 'ok');
-  } catch(err) {
-    showToast('Error al guardar: ' + err.message, 'error');
-  }
-}
-
-async function markAllRead() {
-  ['alertasUrgenteList','alertasImportanteList','alertasInfoList'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:.85rem;text-align:center">✓ Sin alertas pendientes</div>';
-  });
-  const badge = document.getElementById('badgeAlertas');
-  if(badge) badge.textContent = '';
-  showToast('Todo marcado como leído ✓', 'ok');
-}
-
-async function addService() {
-  if(document.getElementById('addServiceOverlay')) return;
-  const overlay = document.createElement('div');
-  overlay.id = 'addServiceOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
-  overlay.innerHTML = `
-    <div style="background:var(--bg-surface);padding:28px;border-radius:24px;width:100%;max-width:380px;box-shadow:var(--shadow-xl);border:1px solid var(--border);animation:slideUp .25s ease">
-      <h3 style="font-weight:800;font-size:1.1rem;margin-bottom:18px">+ Añadir servicio</h3>
-      <div class="flex-col gap-3">
-        <div class="input-group"><label class="input-label">Tipo de servicio</label>
-          <select class="input" id="newSvcType">
-            <option value="luz">⚡ Luz</option>
-            <option value="gas">🔥 Gas</option>
-            <option value="telecos">📱 Telecos</option>
-            <option value="combustible">⛽ Combustible</option>
-            <option value="seguros">🛡️ Seguros</option>
-          </select></div>
-        <div class="input-group"><label class="input-label">Proveedor</label>
-          <input class="input" id="newSvcProvider" placeholder="Ej: Iberdrola, Orange..."/></div>
-        <div class="input-group"><label class="input-label">Coste mensual (€)</label>
-          <input class="input" type="number" id="newSvcAmount" placeholder="49.99" min="0" step="0.01"/></div>
-        <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn btn-secondary w-full" onclick="document.getElementById('addServiceOverlay').remove()">Cancelar</button>
-          <button class="btn btn-primary w-full" onclick="confirmAddService()">Añadir</button>
-        </div>
-      </div>
-    </div>`;
-  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
-}
-
-function confirmAddService() {
-  const emojiMap = {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'};
-  const type     = document.getElementById('newSvcType')?.value;
-  const provider = document.getElementById('newSvcProvider')?.value?.trim();
-  const amount   = parseFloat(document.getElementById('newSvcAmount')?.value || '0');
-  if (!provider) return showToast('Introduce el nombre del proveedor', 'error');
-  HOGAR_SERVICES.push({
-    emoji: emojiMap[type]||'📋',
-    name: type.charAt(0).toUpperCase()+type.slice(1),
-    provider, amount, expiry:'', active:true
-  });
-  document.getElementById('addServiceOverlay')?.remove();
-  renderHogar();
-  showToast('Servicio añadido ✓', 'ok');
-}
+async function saveProfile(){}
+async function saveHogar(){ showToast('Hogar guardado ✓','ok'); }
+async function markAllRead(){ showToast('Todo marcado como leído','ok'); }
+async function addService(){ showToast('Próximamente: añadir servicio personalizado',''); }
 
 // ════════════════════════════════════════════
 //  RENDER FUNCTIONS
@@ -449,14 +308,6 @@ function renderInicio() {
   const greeting = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
   const wt = document.getElementById('welcomeTitle');
   if(wt) wt.textContent = greeting + ' 👋';
-  // Dynamic date subtitle
-  const dateEl = document.getElementById('headerDateSub');
-  if(dateEl) {
-    const now = new Date();
-    const days   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-    dateEl.textContent = `Copiloto IA activo · ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-  }
 
   // AI INSIGHTS
   const insights = [
@@ -674,38 +525,26 @@ async function processUpload(file) {
     setStep('Procesando resultados...');
     const result = await resp.json();
 
-    setStep('Guardando en tu cuenta...');
-    // Formatear fecha para evitar errores de sintaxis "undefined" en Postgres
-    let bDate = result.billing_date;
-    if (!bDate || typeof bDate !== 'string' || bDate.length !== 10) bDate = new Date().toISOString().slice(0,10);
-
-    const dbBill = {
-      user_id:       currentUser.id,
-      vertical:      result.vertical || 'luz',
-      provider_name: result.provider_name || 'Desconocido',
-      amount:        parseFloat(result.amount) || 0,
-      billing_date:  bDate,
-      status:        'analizado',
-      ai_lines:      result.lines || [],
-      ai_recs:       result.recs || [],
-      ai_saving:     result.saving || 0,
-      chat_context:  result.chatContext || ''
+    // Añadir al array local y refrescar la bandeja
+    const newBill = {
+      id:          result.id || Date.now(),
+      vertical:    result.vertical,
+      emoji:       {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'}[result.vertical] || '📄',
+      name:        result.provider_name,
+      amount:      result.amount,
+      date:        result.billing_date || new Date().toISOString().slice(0,10),
+      saving:      result.saving,
+      status:      'analizado',
+      lines:       result.lines,
+      recs:        result.recs,
+      chatContext: result.chatContext
     };
 
-    const { data: savedBill, error: saveErr } = await supabase
-      .from('bills')
-      .insert(dbBill)
-      .select()
-      .single();
-
-    if (saveErr) throw new Error('No se pudo guardar la factura: ' + saveErr.message);
-
-    const newBill = mapSupabaseBill(savedBill);
-    if (USER_BILLS) USER_BILLS.unshift(newBill);
-
-    showToast(`✓ Factura de ${newBill.name} agregada. Ahorro potencial: ${fmt(newBill.saving)}/año`,'ok');
+    if (USER_BILLS !== null) USER_BILLS.unshift(newBill);
+    showToast(`✓ Factura de ${result.provider_name} analizada — €${result.saving}/año de ahorro potencial`,'ok');
     resetUI();
     renderBandeja();
+    // Actualizar stats de inicio también
     renderInicio();
 
   } catch(err) {
@@ -1020,28 +859,6 @@ function renderHogar() {
     if(el) el.addEventListener('input', updateEnergyLabel);
   });
   updateEnergyLabel();
-
-  // Budget tracker
-  const presupuesto = document.getElementById('hPresupuesto');
-  if(presupuesto) {
-    const updateBudget = () => {
-      const budget = parseFloat(presupuesto.value) || 0;
-      const budgetStatus = document.getElementById('budgetStatus');
-      if(!budget || !budgetStatus) return;
-      const spend = getBills().reduce((s,b)=>s+(b.amount||0),0);
-      const pct   = Math.min(spend/budget*100, 100);
-      budgetStatus.style.display = 'block';
-      const bc = document.getElementById('budgetCurrent'); if(bc) bc.textContent = fmt(spend);
-      const bar = document.getElementById('budgetBar');
-      if(bar) { bar.style.width=pct+'%'; bar.className='progress-fill '+(spend>budget?'progress-danger':pct>80?'progress-warning':'progress-accent'); }
-      const msg = document.getElementById('budgetMsg');
-      if(msg) msg.textContent = spend<=budget
-        ? `Bien: €${(budget-spend).toFixed(2)} de margen restante`
-        : `⚠️ Gastas €${(spend-budget).toFixed(2)} más de tu presupuesto`;
-    };
-    presupuesto.addEventListener('input', updateBudget);
-    updateBudget();
-  }
 }
 
 function updateEnergyLabel() {
@@ -1115,29 +932,6 @@ function launchConfetti() {
   }
 }
 
-// ── EXPORT / DELETE ───────────────────────
-function exportUserData() {
-  const payload = {
-    exportDate: new Date().toISOString(),
-    user: { email: currentUser?.email, id: currentUser?.id },
-    bills: USER_BILLS
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `ahorra360-datos-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Datos exportados ✓', 'ok');
-}
-
-async function deleteAccount() {
-  if (!confirm('¿Estás seguro? Esta acción cerrará tu sesión. Para borrar tus datos permanentemente contacta con soporte.')) return;
-  if (supabase) await supabase.auth.signOut();
-  window.location.href = 'auth.html';
-}
-
 // ── INIT ──────────────────────────────────
 async function initApp() {
   if(typeof lucide!=='undefined') lucide.createIcons();
@@ -1206,10 +1000,5 @@ function setSidebarUser(name, email, initials) {
   if(sa) sa.textContent = initials;
 }
 
-// Fix para PWA Zombie State (Carrera entre CDN y DOM)
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
-  // DOM ya estaba listo cuando el script parseó
-  initApp();
-}
+document.addEventListener('DOMContentLoaded', initApp);
+

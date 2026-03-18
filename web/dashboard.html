@@ -114,7 +114,7 @@
     </button>
     <button class="nav-item" data-page="bandeja" onclick="navigate('bandeja')">
       <i data-lucide="inbox" width="17" height="17"></i> Mis Facturas
-      <span class="badge-count" id="badgeBandeja">3</span>
+      <span class="badge-count" id="badgeBandeja"></span>
     </button>
 
     <div class="sidebar-section">Herramientas IA</div>
@@ -161,7 +161,7 @@
   <div class="page-header">
     <div>
       <div class="page-title" id="welcomeTitle">Buenos días 👋</div>
-      <div class="text-muted text-sm">Copiloto IA activo · Lunes, 17 marzo 2026</div>
+      <div class="text-muted text-sm" id="headerDateSub">Copiloto IA activo · cargando...</div>
     </div>
     <div class="flex gap-3 items-center">
       <span class="badge-ai-live">IA activa</span>
@@ -527,7 +527,7 @@
             <span style="font-weight:700">Plan Plus — €4,99/mes</span>
           </div>
           <p class="text-sm text-secondary mb-4">Facturas ilimitadas · Todos los verticales · Chat IA sin límite</p>
-          <a href="#" class="btn btn-primary btn-sm w-full">Gestionar suscripción</a>
+          <a href="#" class="btn btn-primary btn-sm w-full" onclick="showToast('Próximamente: gestión de suscripción vía Stripe','')">Gestionar suscripción</a>
         </div>
 
         <!-- Referidos -->
@@ -544,9 +544,9 @@
         <div class="card">
           <div class="section-title">🛡️ Privacidad y datos</div>
           <div class="flex-col gap-2">
-            <button class="btn btn-secondary btn-sm" style="justify-content:start"><i data-lucide="download" width="14" height="14"></i> Exportar mis datos (JSON)</button>
-            <button class="btn btn-secondary btn-sm" style="justify-content:start"><i data-lucide="mail" width="14" height="14"></i> Solicitar copia por email</button>
-            <button class="btn btn-ghost btn-sm" style="justify-content:start;color:var(--color-danger)" onclick="if(confirm('¿Seguro? Esta acción es irreversible.')){}"><i data-lucide="trash-2" width="14" height="14"></i> Eliminar cuenta</button>
+            <button class="btn btn-secondary btn-sm" style="justify-content:start" onclick="exportUserData()"><i data-lucide="download" width="14" height="14"></i> Exportar mis datos (JSON)</button>
+            <button class="btn btn-secondary btn-sm" style="justify-content:start" onclick="showToast('Te enviaremos tus datos en 48h ✉️','')"><i data-lucide="mail" width="14" height="14"></i> Solicitar copia por email</button>
+            <button class="btn btn-ghost btn-sm" style="justify-content:start;color:var(--color-danger)" onclick="deleteAccount()"><i data-lucide="trash-2" width="14" height="14"></i> Eliminar cuenta</button>
           </div>
         </div>
       </div>

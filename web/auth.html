@@ -286,7 +286,7 @@
             <div class="input-group">
               <div class="flex justify-between items-center">
                 <label class="input-label">Contraseña</label>
-                <a href="#" class="auth-link text-xs">¿La olvidaste?</a>
+                <a href="#" class="auth-link text-xs" onclick="event.preventDefault();resetPassword()">¿La olvidaste?</a>
               </div>
               <input type="password" class="input" placeholder="••••••••" autocomplete="current-password" />
             </div>
@@ -372,6 +372,13 @@
       } catch(e) { console.warn('Supabase init failed:', e); }
     }
 
+    // Auto-redirect if already authenticated
+    if (_sb) {
+      _sb.auth.getSession().then(function({data:{session}}) {
+        if (session) window.location.href = 'dashboard.html';
+      }).catch(function(){});
+    }
+
     // ── TOAST ───────────────────────────────────────────
     function showToast(msg, type) {
       var t = document.getElementById('authToastEl');
@@ -445,6 +452,22 @@
       var result = await _sb.auth.signInWithPassword({ email: email, password: pass });
       if (result.error) { showToast(result.error.message, 'error'); return; }
       window.location.href = 'dashboard.html';
+    }
+
+    async function resetPassword() {
+      var emailInput = document.querySelector('#loginForm input[type=email]');
+      var email = emailInput ? emailInput.value.trim() : '';
+      if (!email) {
+        showToast('Escribe tu email arriba primero', 'error');
+        if(emailInput) emailInput.focus();
+        return;
+      }
+      if (!_sb) { showToast('Revisa tu bandeja de entrada ✉️', 'ok'); return; }
+      var result = await _sb.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/dashboard.html'
+      });
+      if (result.error) { showToast(result.error.message, 'error'); return; }
+      showToast('✉️ Email de recuperación enviado. Revisa tu bandeja.', 'ok');
     }
 
     function loginWithGoogle() {
