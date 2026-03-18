@@ -1176,6 +1176,24 @@ async function deleteAccount() {
   window.location.href = 'auth.html';
 }
 
+// ── MAPPING ───────────────────────────────
+function mapSupabaseBill(row) {
+  const emojiMap = {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'};
+  return {
+    id:          row.id,
+    vertical:    row.vertical || 'luz',
+    emoji:       emojiMap[row.vertical] || '📄',
+    name:        row.provider_name || 'Factura',
+    amount:      row.amount || 0,
+    date:        row.billing_date || row.created_at?.slice(0,10) || '',
+    saving:      row.saving || 0,
+    status:      row.status || 'analizado',
+    lines:       row.lines || [],
+    recs:        row.recs || [],
+    chatContext: row.chat_context || []
+  };
+}
+
 // ── INIT ──────────────────────────────────
 async function initApp() {
   if(typeof lucide!=='undefined') lucide.createIcons();
@@ -1213,9 +1231,6 @@ async function initApp() {
 
     if (billsErr) {
       console.warn('[Ahorra360] Error cargando bills:', billsErr.message);
-      if (billsErr.message?.includes('does not exist')) {
-        setTimeout(() => showToast('⚠️ Ejecuta supabase-schema.sql en tu proyecto Supabase', 'error'), 1000);
-      }
       USER_BILLS = [];
     } else {
       USER_BILLS = (bills || []).map(mapSupabaseBill);
@@ -1231,7 +1246,9 @@ async function initApp() {
 
   } catch(err) {
     console.error('[Ahorra360] initApp error:', err);
-    window.location.href = 'auth.html';
+    // Mostrar demo en lugar de un bucle de redirects infinito
+    USER_BILLS = [];
+    navigate('inicio');
   }
 }
 
