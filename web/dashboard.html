@@ -93,6 +93,21 @@
 </style>
 </head>
 <body>
+<script>
+  window.onerror = function(msg, url, lineNo, columnNo, error) {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:red;color:white;z-index:999999;padding:20px;font-family:monospace;font-size:14px;word-break:break-all;';
+    d.innerHTML = '<b>Ahorra360 Crash:</b><br>' + msg + '<br>Línea: ' + lineNo;
+    document.body.appendChild(d);
+    return false;
+  };
+  window.addEventListener("unhandledrejection", function(e) {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#b91c1c;color:white;z-index:999999;padding:20px;font-family:monospace;font-size:14px;word-break:break-all;';
+    d.innerHTML = '<b>Ahorra360 Async Crash:</b><br>' + (e.reason && e.reason.message ? e.reason.message : e.reason);
+    document.body.appendChild(d);
+  });
+</script>
 <div class="app-layout">
 
 <!-- SIDEBAR -->
