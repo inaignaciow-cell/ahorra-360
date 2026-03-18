@@ -225,6 +225,14 @@
         <div id="verticalesStatus" class="flex-col gap-2"></div>
       </div>
     </div>
+    
+    <!-- MODO MACHETE -->
+    <div class="section-title" style="margin-top:32px; color:var(--color-danger); display:flex; justify-content:space-between; align-items:center">
+      <span>🔪 MODO MACHETE: Fugas de Dinero Detectadas</span>
+      <span class="badge" style="background:#dc262620; color:var(--color-danger)">IA Análisis de Correo</span>
+    </div>
+    <div id="zombieSubscriptions" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom: 32px;"></div>
+
     <style>@media(max-width:860px){#bottomGrid{grid-template-columns:1fr}}</style>
   </div>
 </div>
@@ -599,7 +607,7 @@
 <div id="toast" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--text-primary);color:var(--bg-surface);padding:12px 20px;border-radius:var(--radius-lg);font-size:.875rem;font-weight:600;z-index:9999;white-space:nowrap;box-shadow:var(--shadow-xl);transition:all .3s ease"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=15"></script>
 <script>
   // Service Worker Update Check
   if ('serviceWorker' in navigator) {

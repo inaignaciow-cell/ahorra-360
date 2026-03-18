@@ -57,7 +57,20 @@ module.exports = async function handler(req, res) {
       if (userSavings > 50) { // Regla de negocio: solo molestar si el ahorro vale la pena
         if (offer.cpa > maxCPA) {
           maxCPA = offer.cpa;
-          bestMatch = { ...offer, userSavings: parseFloat(userSavings.toFixed(2)) };
+          
+          // --- LÓGICA FASE 7: ESCUDO ANTI-PERMANENCIA ---
+          // Simulamos que si el proveedor actual es Vodafone o Movistar, hay una multa.
+          let penalty = 0;
+          if (provider_name && (provider_name.toLowerCase().includes('vodafone') || provider_name.toLowerCase().includes('movistar'))) {
+            penalty = 120; // Multa estándar de 120€
+          }
+
+          bestMatch = { 
+            ...offer, 
+            userSavings: parseFloat(userSavings.toFixed(2)),
+            penalty,
+            shieldActive: penalty > 0 && offer.cpa > penalty // Lo cubrimos si nuestra comisión es mayor que la multa
+          };
         }
       }
     }

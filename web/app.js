@@ -848,10 +848,17 @@ function renderDetalle() {
                 <div style="font-size:0.75rem; color:#D97706; font-weight:600">ahorro estimado/año</div>
               </div>
             </div>
+            ${m.shieldActive ? `
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10B981; border-radius: 10px; padding: 10px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px;">
+              <div style="font-size: 1.2rem;">🛡️</div>
+              <div style="font-size: 0.75rem; color: #065F46; line-height: 1.3">
+                <strong>Escudo Anti-Permanencia:</strong> Hemos detectado una posible penalización de €${m.penalty} en tu contrato actual. <strong>Ahorra 360 la pagará por ti</strong> al completar el cambio.
+              </div>
+            </div>` : ''}
             <div style="font-size:0.875rem; color:#92400E; opacity:0.9; margin-bottom:16px;">
               Hemos encontrado la tarifa <strong>${m.plan} (${m.priceDesc})</strong>. Actualmente pagas mucho más a ${b.provider_name || 'tu compañía'}. No te compliques con papeleos, nosotros nos encargamos de todo gratuitamente gestionando la portabilidad.
             </div>
-            <button class="btn" style="width:100%; background:linear-gradient(90deg, #F59E0B, #D97706); border:none; color:white; font-size:1rem; padding:14px; border-radius:12px; box-shadow:0 4px 14px rgba(217, 119, 6, 0.4); display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700" onclick="executeMagicSwitch('${m.provider}', ${m.userSavings})">
+            <button class="btn" style="width:100%; background:linear-gradient(90deg, #F59E0B, #D97706); border:none; color:white; font-size:1rem; padding:14px; border-radius:12px; box-shadow:0 4px 14px rgba(217, 119, 6, 0.4); display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700" onclick="executeMagicSwitch('${m.provider}', ${m.userSavings}, ${m.penalty})">
               <i data-lucide="zap" width="18" height="18"></i> CAMBIAR DE COMPAÑÍA EN 1-CLIC
             </button>
             <div style="text-align:center; margin-top:10px; font-size:0.7rem; color:#B45309; opacity:0.7">Servicio gratuito. Protegido temporalmente.</div>
@@ -865,7 +872,7 @@ function renderDetalle() {
 }
 
 // Ventana flotante (Modal) RPA Simulador
-function executeMagicSwitch(provider, savings) {
+function executeMagicSwitch(provider, savings, penalty = 0) {
   if (document.getElementById('magicSwitchOverlay')) return;
   
   const overlay = document.createElement('div');
@@ -905,7 +912,13 @@ function executeMagicSwitch(provider, savings) {
   
   // Script mágico
   setTimeout(() => { addLog('Rellenando DNI digital OCR...'); bar.style.width='25%'; }, 1500);
-  setTimeout(() => { addLog('Recuperando IBAN del perfil guardado...'); bar.style.width='50%'; }, 3000);
+  setTimeout(() => { 
+    if (penalty > 0) {
+      addLog('<span style="color:#D97706">[🛡️] Activando Escudo: Autorizando pago de €' + penalty + ' de multa...</span>');
+    }
+    addLog('Recuperando IBAN del perfil guardado...'); 
+    bar.style.width='50%'; 
+  }, 3000);
   setTimeout(() => { addLog('Fingiendo ser tú en la web de ' + provider + '...'); bar.style.width='75%'; document.getElementById('magicProgressIcon').textContent='🤖'; }, 4500);
   setTimeout(() => { 
     addLog('<span style="color:var(--color-accent)">¡ÉXITO! Contrato firmado electrónicamente.</span>'); 
@@ -1255,6 +1268,62 @@ function renderPerfil() {
       window.location.href = 'auth.html';
     });
   }
+
+  // --- FUMADA FASE 6: MODO MACHETE ---
+  renderZombies();
+}
+
+// ── FASE 6: MODO MACHETE LÓGICA ────────────────
+function renderZombies() {
+  const container = document.getElementById('zombieSubscriptions');
+  if(!container) return;
+
+  const zombies = [
+    { name: 'Gimnasio Virtual Pro', price: 19.99, lastUsed: 'Hace 4 meses', logo: '💪' },
+    { name: 'Suscripción Revistas', price: 8.50, lastUsed: 'Hace 7 meses', logo: '📰' },
+    { name: 'App Meditación Premium', price: 12.99, lastUsed: 'Hace 1 año', logo: '🧘' }
+  ];
+
+  if (!container.dataset.rendered) {
+    container.innerHTML = zombies.map(sub => `
+      <div class="card card-interactive" style="display:flex; flex-direction:column; justify-content:space-between; border-left:4px solid var(--color-danger); transition: all 0.3s ease; position:relative; overflow:hidden">
+        <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom:16px">
+          <div style="font-size:2rem; filter:grayscale(0.5); opacity:0.8">${sub.logo}</div>
+          <div style="flex:1">
+            <div style="font-weight:800; font-size:1.1rem; color:var(--text-primary)">${sub.name}</div>
+            <div style="font-size:0.75rem; color:var(--color-danger); font-weight:600; margin-top:2px">Uso detectado: ${sub.lastUsed}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:1.2rem; font-weight:900; color:var(--color-danger); font-family:var(--font-mono)">€${sub.price}/mes</div>
+          </div>
+        </div>
+        <button class="btn" style="width:100%; border:none; background: linear-gradient(135deg, #DC2626, #991B1B); color:white; font-weight:800; font-size:1rem; padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 15px rgba(220, 38, 38, 0.4)" onclick="triggerMachete(this, '${sub.name}', ${sub.price})">
+          ACTIVAR MACHETE 🔪
+        </button>
+      </div>
+    `).join('');
+    container.dataset.rendered = "true";
+  }
+}
+
+function triggerMachete(btnElement, subName, price) {
+  const card = btnElement.closest('.card');
+  
+  // Efecto visual y de sonido (simulado)
+  btnElement.innerHTML = 'Cortando lazo legal... ⚔️';
+  btnElement.style.background = '#000';
+  
+  setTimeout(() => {
+    // Aplicar animación CSS de navajazo
+    card.classList.add('sliced-card');
+    
+    showToast(`🔪 ¡MACHETAZO! Burofax enviado. Has recuperado €${price}/mes de ${subName}.`, 'ok');
+    launchConfetti();
+    
+    setTimeout(() => {
+      card.style.display = 'none';
+    }, 600);
+  }, 800);
 }
 
 // FUMADA FASE 5 LÓGICA

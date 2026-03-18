@@ -1,7 +1,7 @@
 // Ahorra 360 - Service Worker v1.0
 // Caches static assets for offline use
 
-const CACHE_NAME = 'ahorra360-v10';
+const CACHE_NAME = 'ahorra360-v12';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
