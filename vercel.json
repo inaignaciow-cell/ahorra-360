@@ -8,6 +8,7 @@
     { "src": "/api/analyze",    "dest": "/api/analyze.js" },
     { "src": "/api/comparador", "dest": "/api/comparador.js" },
     { "src": "/api/chat",       "dest": "/api/chat.js" },
+    { "src": "/api/match_affiliate", "dest": "/api/match_affiliate.js" },
     { "src": "/styles/(.*)",    "dest": "/web/styles/$1" },
     { "src": "/app\\.js",       "dest": "/web/app.js" },
     { "src": "/manifest\\.json","dest": "/web/manifest.json" },

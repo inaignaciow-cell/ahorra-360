@@ -815,6 +815,108 @@ function renderDetalle() {
   ].map(q=>`<button class="btn btn-secondary btn-sm" onclick="askChat('${q}')">${q}</button>`).join('');
 
   if(typeof lucide!=='undefined') setTimeout(()=>lucide.createIcons(),50);
+
+  // --- ZERO-CLICK AFFILIATE ENGINE (Fumada) ---
+  const affContainer = document.getElementById('affiliateMatchOffer');
+  if (affContainer) {
+    affContainer.innerHTML = ''; // Reiniciar
+    
+    // Llamar a la API simulada de afiliados
+    fetch('/api/match_affiliate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vertical: b.vertical,
+        provider_name: b.provider_name,
+        amount: b.amount
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.match && data.match.userSavings > 0) {
+        const m = data.match;
+        affContainer.innerHTML = `
+          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 2px solid #F59E0B; border-radius: var(--radius-xl); padding: 20px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.15); animation: slideUp 0.4s ease-out;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+              <div style="background:#F59E0B; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.2rem; color:white; animation:pulse 2s infinite">✨</div>
+              <div style="flex:1">
+                <div style="font-size:0.75rem; font-weight:800; color:#D97706; text-transform:uppercase; letter-spacing:0.05em">Ahorra 360 AI Matcher</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#92400E">Oferta de ${m.provider} encontrada</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:1.4rem; font-weight:900; color:#B45309">€${m.userSavings}</div>
+                <div style="font-size:0.75rem; color:#D97706; font-weight:600">ahorro estimado/año</div>
+              </div>
+            </div>
+            <div style="font-size:0.875rem; color:#92400E; opacity:0.9; margin-bottom:16px;">
+              Hemos encontrado la tarifa <strong>${m.plan} (${m.priceDesc})</strong>. Actualmente pagas mucho más a ${b.provider_name || 'tu compañía'}. No te compliques con papeleos, nosotros nos encargamos de todo gratuitamente gestionando la portabilidad.
+            </div>
+            <button class="btn" style="width:100%; background:linear-gradient(90deg, #F59E0B, #D97706); border:none; color:white; font-size:1rem; padding:14px; border-radius:12px; box-shadow:0 4px 14px rgba(217, 119, 6, 0.4); display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700" onclick="executeMagicSwitch('${m.provider}', ${m.userSavings})">
+              <i data-lucide="zap" width="18" height="18"></i> CAMBIAR DE COMPAÑÍA EN 1-CLIC
+            </button>
+            <div style="text-align:center; margin-top:10px; font-size:0.7rem; color:#B45309; opacity:0.7">Servicio gratuito. Protegido temporalmente.</div>
+          </div>
+        `;
+        if(typeof lucide!=='undefined') lucide.createIcons();
+      }
+    })
+    .catch(console.error);
+  }
+}
+
+// Ventana flotante (Modal) RPA Simulador
+function executeMagicSwitch(provider, savings) {
+  if (document.getElementById('magicSwitchOverlay')) return;
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'magicSwitchOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;perspective:1000px';
+  
+  overlay.innerHTML = `
+    <div style="background:var(--bg-surface);padding:32px;border-radius:24px;width:100%;max-width:380px;box-shadow:0 24px 50px rgba(0,0,0,0.25);border:1px solid var(--border);animation:popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; text-align:center">
+      
+      <div id="magicProgressIcon" style="font-size:3rem; margin-bottom:16px; animation:bounce 1s infinite">🥷</div>
+      
+      <h3 style="font-weight:900;font-size:1.3rem;margin-bottom:8px" id="magicSwitchTitle">Gestor IA Operando</h3>
+      <div style="font-size:.9rem;color:var(--text-muted);margin-bottom:24px;line-height:1.4" id="magicSwitchDesc">
+        Conectando con servidores seguros...
+      </div>
+      
+      <div style="background:var(--bg-surface-2); border-radius:99px; height:8px; width:100%; overflow:hidden; margin-bottom:24px; position:relative">
+        <div id="magicLoaderBar" style="background:var(--color-primary); height:100%; width:5%; transition:width .3s ease"></div>
+      </div>
+      
+      <div id="magicLog" style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted); text-align:left; background:var(--bg-surface-3); padding:12px; border-radius:12px; height:80px; overflow-y:auto; line-height:1.6; margin-bottom:16px">
+        [+] Inicializando proxy...
+      </div>
+      
+      <button id="magicCloseBtn" class="btn btn-secondary w-full" style="display:none" onclick="document.getElementById('magicSwitchOverlay').remove()">Hecho, salir y disfrutar</button>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  const log = document.getElementById('magicLog');
+  const bar = document.getElementById('magicLoaderBar');
+  const addLog = (text) => {
+    log.innerHTML += `<br>[+] ${text}`;
+    log.scrollTop = log.scrollHeight;
+  };
+  
+  // Script mágico
+  setTimeout(() => { addLog('Rellenando DNI digital OCR...'); bar.style.width='25%'; }, 1500);
+  setTimeout(() => { addLog('Recuperando IBAN del perfil guardado...'); bar.style.width='50%'; }, 3000);
+  setTimeout(() => { addLog('Fingiendo ser tú en la web de ' + provider + '...'); bar.style.width='75%'; document.getElementById('magicProgressIcon').textContent='🤖'; }, 4500);
+  setTimeout(() => { 
+    addLog('<span style="color:var(--color-accent)">¡ÉXITO! Contrato firmado electrónicamente.</span>'); 
+    bar.style.width='100%'; 
+    bar.style.background='var(--color-accent)';
+    document.getElementById('magicProgressIcon').textContent='🎉';
+    document.getElementById('magicSwitchTitle').textContent = '¡Te ahorraste €' + savings + '!';
+    document.getElementById('magicSwitchDesc').textContent = 'Acabamos de darte de alta en ' + provider + ' y gestionado tu baja en la anterior compañía. Todo automáticamente.';
+    document.getElementById('magicCloseBtn').style.display='block';
+    launchConfetti();
+  }, 6500);
 }
 
 function completeRec(el, title) {
