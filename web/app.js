@@ -439,6 +439,36 @@ function confirmAddService() {
   showToast('Servicio añadido ✓', 'ok');
 }
 
+// ── ROUTING ─────────────────────────────────
+function navigate(page) {
+  // Ocultar todas las páginas
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  // Quitar active de todos los nav-items
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+  // Mostrar página destino
+  const target = document.getElementById('page-' + page);
+  if(target) target.classList.add('active');
+
+  // Activar nav-item(s) correspondiente(s) (sidebar desk y movil)
+  document.querySelectorAll(`.nav-item[data-page="${page}"]`).forEach(el => el.classList.add('active'));
+
+  // Llama a funciones específicas de renderizado
+  if(page === 'inicio') renderInicio();
+  else if(page === 'bandeja') renderBandeja();
+  else if(page === 'comparador') renderComparador();
+  else if(page === 'score') renderScore();
+  else if(page === 'alertas') renderAlertas();
+  else if(page === 'hogar') renderHogar();
+  else if(page === 'perfil') renderPerfil();
+
+  window.scrollTo(0, 0);
+  window.history.replaceState(null, null, '#' + page);
+  
+  // Close mobile sidebar if open
+  document.getElementById('sidebar')?.classList.remove('open');
+}
+
 // ════════════════════════════════════════════
 //  RENDER FUNCTIONS
 // ════════════════════════════════════════════
