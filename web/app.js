@@ -291,12 +291,12 @@ function authToast(msg, type='') {
 }
 
 async function registerUser(email, pass) {
-  if(!supabase) {
+  if(!sbClient) {
     authToast('Cuenta creada en modo demo ✓','ok');
     setTimeout(()=>{ window.location.href='dashboard.html'; }, 900);
     return true;
   }
-  const {data, error} = await supabase.auth.signUp({email, password:pass});
+  const {data, error} = await sbClient.auth.signUp({email, password:pass});
   if(error){ authToast(error.message,'error'); return false; }
   // If email confirmation needed
   if(data.user && !data.session) {
@@ -307,24 +307,24 @@ async function registerUser(email, pass) {
 }
 
 async function loginUser(email, pass) {
-  if(!supabase) {
+  if(!sbClient) {
     authToast('Iniciando sesión en modo demo...','ok');
     setTimeout(()=>{ window.location.href='dashboard.html'; }, 700);
     return;
   }
-  const {error} = await supabase.auth.signInWithPassword({email, password:pass});
+  const {error} = await sbClient.auth.signInWithPassword({email, password:pass});
   if(error){ authToast(error.message,'error'); return; }
   window.location.href='dashboard.html';
 }
 
 async function loginWithGoogle() {
-  if(!supabase) {
+  if(!sbClient) {
     // Demo mode — redirect directly
     authToast('Conectando con Google en modo demo...','ok');
     setTimeout(()=>{ window.location.href='dashboard.html'; }, 800);
     return;
   }
-  await supabase.auth.signInWithOAuth({
+  await sbClient.auth.signInWithOAuth({
     provider:'google',
     options:{ redirectTo: window.location.origin+'/dashboard.html' }
   });
@@ -340,8 +340,8 @@ async function saveProfile() {
   const name  = document.getElementById('pNombre')?.value?.trim();
   if (!name) return showToast('Introduce tu nombre', 'error');
   try {
-    if (supabase && currentUser) {
-      const { error } = await supabase.auth.updateUser({ data: { full_name: name } });
+    if (sbClient && currentUser) {
+      const { error } = await sbClient.auth.updateUser({ data: { full_name: name } });
       if (error) throw error;
     }
     // Update sidebar & avatar immediately
@@ -730,7 +730,7 @@ async function processUpload(file) {
       chat_context:  result.chatContext || ''
     };
 
-    const { data: savedBill, error: saveErr } = await supabase
+    const { data: savedBill, error: saveErr } = await sbClient
       .from('bills')
       .insert(dbBill)
       .select()
