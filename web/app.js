@@ -458,6 +458,10 @@ function renderInicio() {
     dateEl.textContent = `Copiloto IA activo · ${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
   }
 
+  // Banner de datos de ejemplo para usuarios sin facturas
+  const demoBanner = document.getElementById('demoBanner');
+  if(demoBanner) demoBanner.style.display = isUsingDemoData() ? 'flex' : 'none';
+
   // AI INSIGHTS
   const insights = [
     { sev:'urgent',  icon:'🔴', title:'Promo Orange caduca en 18 días', body:'Sin acción subirás de €49,99 a €79,99. Cambiando a Digi ahorras €276/año.', cta:'Ver alternativas', fn:"navigate('comparador')" },
@@ -539,9 +543,13 @@ function mapSupabaseBill(row) {
   };
 }
 
-// getBills() — NUNCA devuelve MOCK_BILLS si hay credenciales reales
+// getBills() — usa datos reales si existen, demo si el usuario no tiene facturas aún
 function getBills() {
-  return USER_BILLS; // siempre el array real (peut être vide)
+  return USER_BILLS.length > 0 ? USER_BILLS : MOCK_BILLS;
+}
+
+function isUsingDemoData() {
+  return USER_BILLS.length === 0;
 }
 
 // ── BANDEJA ───────────────────────────────
