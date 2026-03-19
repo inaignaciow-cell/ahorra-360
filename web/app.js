@@ -195,6 +195,7 @@ function navigate(page) {
   if(page==='radar')      renderRadar();
   if(page==='autonomia')  renderAutonomia();
   if(page==='activista')  renderActivista();
+  if(page==='pasaporte')  renderPasaporte();
   if(typeof lucide !== 'undefined') setTimeout(()=>lucide.createIcons(),50);
 
   window.scrollTo(0, 0);
@@ -2943,4 +2944,119 @@ function activistaGenerateBurofax() {
     preview.textContent = templates[type] || '';
     showToast('✅ Burofax generado por IA. Revisa y personaliza antes de enviar.', 'ok');
   }
+}
+
+// ── FASE 21: MI PASAPORTE FINANCIERO ────────────────────────────────
+function renderPasaporte() {
+  // Populate card with user data
+  const name = currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0] || 'Usuario Ahorra';
+  const email = currentUser?.email || 'demo@ahorra360.es';
+  const shortId = 'A360-' + (currentUser?.id?.slice(0,4) || '9F2A').toUpperCase() + '-' + (currentUser?.id?.slice(4,8) || 'B71C').toUpperCase();
+
+  const el = n => document.getElementById(n);
+  if (el('pasaporteUserName')) el('pasaporteUserName').textContent = name.toUpperCase();
+  if (el('pasaporteUserEmail')) el('pasaporteUserEmail').textContent = email;
+  if (el('pasaporteId')) el('pasaporteId').textContent = shortId;
+
+  // Score bars
+  const scoreEl = el('pasaporteScoreBar');
+  if (scoreEl) {
+    const scores = [
+      { label: 'Transparencia',  val: 88, color: '#10B981' },
+      { label: 'Ahorro activo',  val: 72, color: '#6366F1' },
+      { label: 'Score Eficiencia', val: 62, color: '#F59E0B' },
+    ];
+    scoreEl.innerHTML = scores.map(s => `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:4px;">
+          <span style="color:var(--text-secondary);">${s.label}</span>
+          <span style="font-weight:700;color:${s.color};">${s.val}/100</span>
+        </div>
+        <div style="height:6px;background:var(--bg-surface-2);border-radius:6px;">
+          <div style="height:6px;width:${s.val}%;background:${s.color};border-radius:6px;transition:width 0.6s ease;"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Datos stats
+  const datosEl = el('pasaporteDatosStats');
+  if (datosEl) {
+    const stats = [
+      { label: 'Facturas analizadas', val: '26' },
+      { label: 'Empresas con acceso', val: '2' },
+      { label: 'Alertas generadas',   val: '14' },
+      { label: 'Ingresos por datos',  val: '€4.80' },
+    ];
+    datosEl.innerHTML = stats.map(s => `
+      <div style="text-align:center;padding:10px;background:var(--bg-surface-2);border-radius:12px;">
+        <div style="font-weight:800;font-size:1.1rem;color:var(--text-primary);">${s.val}</div>
+        <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;">${s.label}</div>
+      </div>
+    `).join('');
+  }
+
+  // B2B Marketplace
+  const b2bEl = el('pasaporteB2B');
+  if (b2bEl) {
+    const companies = [
+      { name: 'Octopus Energy España', desc: 'Solicita: Datos de consumo eléctrico anónimizado',   reward: '+€2.40/mes', granted: true  },
+      { name: 'Mutua Madrileña',       desc: 'Solicita: Patrón de movilidad (sin GPS)',              reward: '+€1.80/mes', granted: false },
+      { name: 'ING Direct',            desc: 'Solicita: Perfil de gasto en servicios del hogar',     reward: '+€3.00/mes', granted: false },
+    ];
+    b2bEl.innerHTML = companies.map(c => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--bg-surface-2);border-radius:12px;${c.granted ? 'border:1px solid #10B981;' : ''}">
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:0.9rem;margin-bottom:2px;">${c.name}</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);">${c.desc}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-left:12px;">
+          <div style="font-weight:800;color:#10B981;font-size:0.9rem;white-space:nowrap;">${c.reward}</div>
+          <button class="btn ${c.granted ? 'btn-secondary' : ''}" style="${c.granted ? '' : 'background:#10B981;color:white;'} font-size:0.78rem;padding:6px 12px;white-space:nowrap;" onclick="pasaporteToggleAccess(this,'${c.name}',${c.granted})">
+            ${c.granted ? '✓ Concedido' : 'Conceder'}
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // History
+  const histEl = el('pasaporteHistory');
+  if (histEl) {
+    const history = [
+      { who: 'Octopus Energy', action: 'Acceso concedido — datos de consumo feb-26',    when: 'Hoy 13:42',  type: 'access' },
+      { who: 'Ahorra 360 IA',  action: 'Análisis de factura Endesa — 3.2kW detectados', when: 'Hoy 09:21',  type: 'internal' },
+      { who: 'Octopus Energy', action: 'Consulta datos consumo ene-26',                  when: '01 Mar',     type: 'access' },
+      { who: 'Ahorra 360 IA',  action: 'Score de eficiencia recalculado: 62/100',        when: '28 Feb',     type: 'internal' },
+    ];
+    const colors = { access: '#6366F1', internal: '#10B981' };
+    histEl.innerHTML = history.map((h, i) => `
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;${i < history.length-1 ? 'border-bottom:1px solid var(--border);' : ''}">
+        <div style="min-width:8px;height:8px;border-radius:50%;background:${colors[h.type]};margin-top:6px;"></div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;">
+            <span style="font-weight:600;font-size:0.85rem;">${h.who}</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);">${h.when}</span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--text-muted);">${h.action}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 80);
+}
+
+function pasaporteToggleAccess(btn, company, wasGranted) {
+  if (wasGranted) {
+    showToast(`Acceso revocado para ${company}. Sus datos han sido eliminados de sus sistemas.`, 'warning');
+  } else {
+    showToast(`✅ Acceso concedido a ${company}. Empezarás a ingresar recompensas el próximo mes.`, 'ok');
+    if (typeof launchConfetti === 'function') launchConfetti();
+  }
+  setTimeout(() => renderPasaporte(), 400);
+}
+
+function pasaporteDownload() {
+  showToast('📄 Generando PDF del Pasaporte Financiero... (disponible en Fase 32)', 'star');
 }
