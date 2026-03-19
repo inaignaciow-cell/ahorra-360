@@ -1704,6 +1704,56 @@
   </div>
 </div>
 
+<!-- ═══════ PÁGINA: RADAR MACRO ═══════ -->
+<div id="page-radar" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">⚡ Radar Macroeconómico</div>
+      <div class="text-muted text-sm" style="display:flex; align-items:center; gap:6px;">
+        <span class="badge-ai-live" style="background:#8B5CF6;color:white;padding:2px 8px;">Fase 23</span>
+        La economía global impacta tu bolsillo — en tiempo real
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span id="radarLastUpdate" style="font-size:0.8rem;color:var(--text-muted);"></span>
+      <button class="btn btn-secondary" onclick="renderRadar()"><i data-lucide="refresh-cw" width="14" height="14"></i> Actualizar</button>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <!-- KPIs Clave -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px;" id="radarKpis">
+      <!-- populated by JS -->
+    </div>
+
+    <!-- Main Grid -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+      <!-- Energía -->
+      <div class="saving-card">
+        <div style="font-weight:700; font-size:1rem; margin-bottom:16px; display:flex;align-items:center;gap:8px;">
+          <i data-lucide="zap" width="18" height="18" style="color:#F59E0B;"></i> Mercado Eléctrico
+        </div>
+        <div id="radarEnergy"></div>
+      </div>
+      <!-- Inflación -->
+      <div class="saving-card">
+        <div style="font-weight:700; font-size:1rem; margin-bottom:16px; display:flex;align-items:center;gap:8px;">
+          <i data-lucide="trending-up" width="18" height="18" style="color:#EF4444;"></i> Inflación &amp; EURIBOR
+        </div>
+        <div id="radarInflation"></div>
+      </div>
+    </div>
+
+    <!-- IA Insights -->
+    <div class="saving-card" style="border-left:4px solid #8B5CF6;">
+      <div style="font-weight:700; margin-bottom:16px; display:flex;align-items:center;gap:8px; font-size:1rem;">
+        <i data-lucide="brain" width="18" height="18" style="color:#8B5CF6;"></i> Impacto Directo en tu Hogar
+      </div>
+      <div id="radarImpacts" style="display:flex; flex-direction:column; gap:12px;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════ PÁGINA: TARJETA 360 ═══════ -->
 <div id="page-tarjeta" class="page">
   <div class="page-header">

@@ -192,6 +192,7 @@ function navigate(page) {
   if(page==='hogar')      renderHogar();
   if(page==='perfil')     renderPerfil();
   if(page==='tarjeta')    renderTarjeta();
+  if(page==='radar')      renderRadar();
   if(typeof lucide !== 'undefined') setTimeout(()=>lucide.createIcons(),50);
 
   window.scrollTo(0, 0);
@@ -2632,4 +2633,110 @@ function switchDeepCompare(tab) {
       view.style.display = (t === tab) ? 'block' : 'none';
     }
   });
+}
+
+// ── FASE 23: RADAR MACROECONÓMICO ────────────────────────────────────
+function renderRadar() {
+  const now = new Date();
+  const ts = document.getElementById('radarLastUpdate');
+  if (ts) ts.textContent = `Actualizado: ${now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h`;
+
+  // ── KPIs ──
+  const KPIS = [
+    { label: 'PVPC España',   value: '0.142 €/kWh', delta: '+4.2%',  color: '#F59E0B', up: true,  icon: 'zap' },
+    { label: 'Petróleo Brent',value: '82.4 $/bbl',  delta: '-1.8%',  color: '#10B981', up: false, icon: 'droplets' },
+    { label: 'IPC España',    value: '2.9%',         delta: '-0.3pp', color: '#10B981', up: false, icon: 'trending-up' },
+    { label: 'EURIBOR 12M',   value: '2.58%',        delta: '-0.12pp',color: '#10B981', up: false, icon: 'percent' },
+  ];
+  const kpiEl = document.getElementById('radarKpis');
+  if (kpiEl) {
+    kpiEl.innerHTML = KPIS.map(k => `
+      <div class="saving-card" style="text-align:center;">
+        <i data-lucide="${k.icon}" width="22" height="22" style="color:${k.color}; margin-bottom:8px;"></i>
+        <div style="font-size:1.6rem; font-weight:900; color:var(--text-primary); line-height:1;">${k.value}</div>
+        <div style="font-size:0.8rem; font-weight:700; color:${k.up ? '#EF4444' : '#10B981'}; margin:4px 0;">
+          ${k.up ? '▲' : '▼'} ${k.delta}
+        </div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">${k.label}</div>
+      </div>
+    `).join('');
+  }
+
+  // ── ENERGÍA ──
+  const energyEl = document.getElementById('radarEnergy');
+  if (energyEl) {
+    const hourly = [
+      { h: '00h', v: 0.068 }, { h: '06h', v: 0.082 }, { h: '09h', v: 0.158 },
+      { h: '12h', v: 0.134 }, { h: '17h', v: 0.186 }, { h: '20h', v: 0.201 }, { h: '22h', v: 0.142 }
+    ];
+    const max = Math.max(...hourly.map(x => x.v));
+    energyEl.innerHTML = `
+      <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Precio OMIE por franjas horarias hoy</div>
+      <div style="display:flex; gap:6px; align-items:flex-end; height:80px; margin-bottom:8px;">
+        ${hourly.map(h => {
+          const pct = (h.v / max) * 100;
+          const hot = h.v > 0.15;
+          return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:4px;">
+            <div style="flex:1; display:flex; align-items:flex-end; width:100%;">
+              <div style="width:100%; height:${pct}%; background:${hot ? '#EF4444' : '#10B981'}; border-radius:4px 4px 0 0; min-height:4px;"></div>
+            </div>
+            <div style="font-size:0.65rem; color:var(--text-muted);">${h.h}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+        <span style="color:#10B981; font-weight:700;">✔ Mejor franja: 00-07h</span>
+        <span style="color:#EF4444; font-weight:700;">⚠ Pico: 20-22h</span>
+      </div>
+    `;
+  }
+
+  // ── INFLACIÓN / EURIBOR ──
+  const inflEl = document.getElementById('radarInflation');
+  if (inflEl) {
+    const series = [
+      { label: 'IPC general',       val: 2.9,  prev: 3.2, unit: '%' },
+      { label: 'IPC subyacente',    val: 2.4,  prev: 2.6, unit: '%' },
+      { label: 'EURIBOR 12M',       val: 2.58, prev: 2.70, unit: '%' },
+      { label: 'Tipo BCE',           val: 2.50, prev: 3.00, unit: '%' },
+      { label: 'Gas TTF (€/MWh)',   val: 38.2, prev: 41.1, unit: '€' },
+    ];
+    inflEl.innerHTML = series.map(s => {
+      const delta = (s.val - s.prev).toFixed(2);
+      const up = delta > 0;
+      return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
+        <span style="font-size:0.9rem; color:var(--text-primary);">${s.label}</span>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <span style="font-size:0.8rem; color:var(--text-muted);">Anterior: ${s.unit === '%' ? '' : s.unit}${s.prev}${s.unit === '%' ? s.unit : ''}</span>
+          <span style="font-weight:800; color:var(--text-primary);">${s.unit === '%' ? '' : s.unit}${s.val}${s.unit === '%' ? s.unit : ''}</span>
+          <span style="font-size:0.8rem; font-weight:700; color:${up ? '#EF4444' : '#10B981'};">${up ? '▲' : '▼'} ${Math.abs(delta)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── IA IMPACTS ──
+  const impEl = document.getElementById('radarImpacts');
+  if (impEl) {
+    const impacts = [
+      { severity: 'high',   icon: 'zap',          title: 'Pico eléctrico esta noche (20-22h)',           text: 'Anticipa tus electrodomésticos al mediodía. Estimamos -14€ en tu factura mensual.' },
+      { severity: 'medium', icon: 'trending-down', title: 'EURIBOR bajó al 2.58%',                        text: 'Tu hipoteca variable revisada en junio se reducirá aprox. -42€/mes. Valoramos esperar antes de fijar un tipo fijo.' },
+      { severity: 'low',    icon: 'droplets',      title: 'Gas TTF cae (-7% este mes)',                   text: 'Si tienes tarifa gas indexada, es un buen momento para no cambiarte a tarifa fija todavía.' },
+      { severity: 'medium', icon: 'shield-alert',  title: 'IPC baja a 2.9% — revisa cláusulas de revisión', text: 'Si tu arrendador tiene cláusula IPC, la próxima revisión será más baja. Guarda esta captura.' },
+    ];
+    const colors = { high: '#EF4444', medium: '#F59E0B', low: '#10B981' };
+    impEl.innerHTML = impacts.map(i => `
+      <div style="display:flex; gap:16px; align-items:flex-start; padding:14px; background:var(--bg-surface-2); border-radius:12px;">
+        <div style="min-width:40px; height:40px; border-radius:50%; background:${colors[i.severity]}22; display:flex;align-items:center;justify-content:center;">
+          <i data-lucide="${i.icon}" width="18" height="18" style="color:${colors[i.severity]};"></i>
+        </div>
+        <div>
+          <div style="font-weight:700; font-size:0.95rem; margin-bottom:4px;">${i.title}</div>
+          <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">${i.text}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 60);
 }
