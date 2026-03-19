@@ -193,6 +193,7 @@ function navigate(page) {
   if(page==='perfil')     renderPerfil();
   if(page==='tarjeta')    renderTarjeta();
   if(page==='radar')      renderRadar();
+  if(page==='autonomia')  renderAutonomia();
   if(typeof lucide !== 'undefined') setTimeout(()=>lucide.createIcons(),50);
 
   window.scrollTo(0, 0);
@@ -2739,4 +2740,109 @@ function renderRadar() {
   }
 
   if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 60);
+}
+
+// ── FASE 28: IA AUTÓNOMA ────────────────────────────────────────────
+let iaAutopilotActive = true;
+
+function renderAutonomia() {
+  renderIAMissionLog();
+  renderIAPermissions();
+  updateIAAutopilotBtn();
+  if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 80);
+}
+
+function renderIAMissionLog() {
+  const el = document.getElementById('iaMissionLog');
+  if (!el) return;
+  const missions = [
+    { time: 'Hoy 13:42', icon: 'search',        status: 'done',    color: '#10B981', label: 'Scan completado',       desc: 'Analizado mercado de luz: tarifa Octopus Energy ahorra 38€/mes vs. actual.' },
+    { time: 'Hoy 09:15', icon: 'file-text',      status: 'done',    color: '#10B981', label: 'Factura procesada',     desc: 'Endesa Mar-26 analizada: detección de cargo extra de 2.40€ (en disputa).' },
+    { time: 'Ayer 22:00', icon: 'bell',          status: 'alert',   color: '#F59E0B', label: 'Alerta de precio',      desc: 'PVPC superó 0.20€/kWh. Electrodomésticos pospuestos automáticamente.' },
+    { time: 'Ayer 14:30', icon: 'phone',         status: 'pending', color: '#6366F1', label: 'Negociación en curso',  desc: 'Amago de portabilidad enviado a Vodafone. Esperando contraoferta (72h).' },
+    { time: '17 Mar',    icon: 'trending-down',  status: 'done',    color: '#10B981', label: 'Ahorro ejecutado',      desc: 'Cambiada tarifa gas a indexada TTF. Ahorro proyectado: +62€/año.' },
+    { time: '15 Mar',    icon: 'scissors',       status: 'done',    color: '#10B981', label: 'Suscripción cancelada', desc: 'Gimnasio Virtual cancelado (sin uso 4 meses). 19,99€/mes recuperados.' },
+  ];
+  const statusColors = { done: '#10B981', alert: '#F59E0B', pending: '#6366F1' };
+  const statusLabel  = { done: 'Completado', alert: 'Alerta', pending: 'Pendiente' };
+  el.innerHTML = missions.map((m, i) => `
+    <div style="display:flex; gap:14px; align-items:flex-start; padding:14px 0; ${i < missions.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
+      <div style="min-width:36px; height:36px; border-radius:50%; background:${m.color}18; display:flex; align-items:center; justify-content:center;">
+        <i data-lucide="${m.icon}" width="16" height="16" style="color:${m.color};"></i>
+      </div>
+      <div style="flex:1; min-width:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+          <span style="font-weight:700; font-size:0.9rem;">${m.label}</span>
+          <span style="font-size:0.7rem; color:var(--text-muted);">${m.time}</span>
+        </div>
+        <div style="font-size:0.82rem; color:var(--text-muted); line-height:1.4;">${m.desc}</div>
+        <span style="display:inline-block; margin-top:6px; font-size:0.7rem; font-weight:700; color:${statusColors[m.status]}; background:${statusColors[m.status]}15; padding:2px 8px; border-radius:20px;">${statusLabel[m.status]}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderIAPermissions() {
+  const el = document.getElementById('iaPermissions');
+  if (!el) return;
+  const perms = [
+    { id: 'perm-scan',    label: 'Scan de Mercado',         desc: 'Comparar tarifas automáticamente',    on: true  },
+    { id: 'perm-alert',   label: 'Alertas de Precio',       desc: 'Notificar picos PVPC y gas',          on: true  },
+    { id: 'perm-subs',    label: 'Gestión Suscripciones',   desc: 'Detectar gastos hormiga y cancelar',  on: true  },
+    { id: 'perm-neg',     label: 'IA Negociadora',          desc: 'Amagos de portabilidad estratégicos', on: false },
+    { id: 'perm-move',    label: 'Cambio de Tarifa',        desc: 'Cambiar contrato sin intervención',   on: false },
+  ];
+  el.innerHTML = perms.map(p => `
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-weight:600; font-size:0.9rem;">${p.label}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">${p.desc}</div>
+      </div>
+      <label style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;">
+        <input type="checkbox" ${p.on ? 'checked' : ''} style="opacity:0; width:0; height:0;" onchange="iaPermChange('${p.id}', this.checked)">
+        <span style="position:absolute; inset:0; border-radius:24px; background:${p.on ? 'var(--color-primary)' : 'var(--border)'}; transition:0.3s;">
+          <span style="position:absolute; width:18px; height:18px; border-radius:50%; background:white; top:3px; left:${p.on ? '23px' : '3px'}; transition:0.3s;"></span>
+        </span>
+      </label>
+    </div>
+  `).join('');
+}
+
+function iaPermChange(id, enabled) {
+  showToast(`Permiso "${id.replace('perm-', '')}" ${enabled ? 'activado' : 'desactivado'} ✓`, enabled ? 'ok' : 'warning');
+}
+
+function updateIAAutopilotBtn() {
+  const btn = document.getElementById('btnAutopilot');
+  if (!btn) return;
+  if (iaAutopilotActive) {
+    btn.innerHTML = '<i data-lucide="pause-circle" width="16" height="16"></i> Pausar Autopiloto';
+    btn.style.background = '#EF4444';
+  } else {
+    btn.innerHTML = '<i data-lucide="play-circle" width="16" height="16"></i> Activar Autopiloto';
+    btn.style.background = '';
+  }
+  if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
+}
+
+function iaToggleAutopilot() {
+  iaAutopilotActive = !iaAutopilotActive;
+  updateIAAutopilotBtn();
+  const banner = document.getElementById('iaStatusBanner');
+  if (banner) {
+    banner.style.background = iaAutopilotActive ? 'var(--ai-gradient)' : '#6B7280';
+    banner.querySelector('div > div').textContent = iaAutopilotActive
+      ? '🟢 Agente activo — analizando en segundo plano'
+      : '⏸️ Autopiloto pausado — sin acciones automáticas';
+  }
+  showToast(iaAutopilotActive ? '✅ Autopiloto activado' : '⏸️ Autopiloto pausado', iaAutopilotActive ? 'ok' : 'warning');
+}
+
+function iaLaunchMission(type) {
+  const msgs = {
+    comparacion: '🔍 Iniciando Scan de Mercado... analizando 47 tarifas disponibles.',
+    negociacion: '📞 IA Negociadora activada. Redactando amago estratégico de portabilidad para Vodafone.',
+    alerta:      '🔔 Guardián Contratual activo. Monitorizando fechas de vencimiento y cláusulas...',
+  };
+  showToast(msgs[type] || 'Misión lanzada', 'star');
 }

@@ -1704,6 +1704,79 @@
   </div>
 </div>
 
+<!-- ═══════ PÁGINA: IA AUTÓNOMA ═══════ -->
+<div id="page-autonomia" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">🤖 IA Autónoma</div>
+      <div class="text-muted text-sm" style="display:flex; align-items:center; gap:6px;">
+        <span class="badge-ai-live" style="background:var(--color-primary);color:white;padding:2px 8px;">Fase 28</span>
+        Tu agente financiero opera solo, 24/7, mientras duermes
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="iaToggleAutopilot()" id="btnAutopilot">
+      <i data-lucide="play-circle" width="16" height="16"></i> Activar Autopiloto
+    </button>
+  </div>
+
+  <div class="page-body">
+    <!-- Estatus Banner -->
+    <div id="iaStatusBanner" style="margin-bottom:24px; padding:20px 24px; border-radius:16px; background:var(--ai-gradient); color:white; display:flex; justify-content:space-between; align-items:center; box-shadow:0 8px 24px rgba(99,102,241,0.25);">
+      <div>
+        <div style="font-weight:900; font-size:1.1rem; margin-bottom:4px;">🟢 Agente activo — analizando en segundo plano</div>
+        <div style="opacity:0.85; font-size:0.85rem;">Última acción completada hace 7 minutos · Próxima en 8h 43m</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:2.2rem; font-weight:900;">€1.284</div>
+        <div style="font-size:0.8rem; opacity:0.85;">Ahorrado de forma autónoma</div>
+      </div>
+    </div>
+
+    <!-- Mission Control Grid -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:24px;">
+      <div class="saving-card" style="text-align:center; cursor:pointer;" onclick="iaLaunchMission('comparacion')">
+        <i data-lucide="search" width="28" height="28" style="color:var(--color-primary); margin-bottom:12px;"></i>
+        <div style="font-weight:700; margin-bottom:6px;">Scan de Mercado</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">Buscar mejores tarifas ahora</div>
+        <div style="margin-top:12px; font-size:0.75rem; background:#EEF2FF; color:var(--color-primary); padding:4px 8px; border-radius:8px; display:inline-block; font-weight:700;">Última: Hoy 13:42</div>
+      </div>
+      <div class="saving-card" style="text-align:center; cursor:pointer;" onclick="iaLaunchMission('negociacion')">
+        <i data-lucide="phone" width="28" height="28" style="color:#10B981; margin-bottom:12px;"></i>
+        <div style="font-weight:700; margin-bottom:6px;">IA Negociadora</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">Amago de baja + contraoferta</div>
+        <div style="margin-top:12px; font-size:0.75rem; background:#D1FAE5; color:#065F46; padding:4px 8px; border-radius:8px; display:inline-block; font-weight:700;">1 pendiente</div>
+      </div>
+      <div class="saving-card" style="text-align:center; cursor:pointer;" onclick="iaLaunchMission('alerta')">
+        <i data-lucide="bell-ring" width="28" height="28" style="color:#F59E0B; margin-bottom:12px;"></i>
+        <div style="font-weight:700; margin-bottom:6px;">Guardián Contratual</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">Leer letra pequeña 24/7</div>
+        <div style="margin-top:12px; font-size:0.75rem; background:#FEF3C7; color:#92400E; padding:4px 8px; border-radius:8px; display:inline-block; font-weight:700;">2 alertas activas</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:20px;">
+      <!-- Mission Log -->
+      <div class="saving-card">
+        <div style="font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; font-size:1rem;">
+          <i data-lucide="activity" width="18" height="18" style="color:var(--color-primary);"></i> Registro de Misiones
+        </div>
+        <div id="iaMissionLog" style="display:flex; flex-direction:column; gap:0;"></div>
+      </div>
+
+      <!-- Permissions -->
+      <div class="saving-card">
+        <div style="font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; font-size:1rem;">
+          <i data-lucide="shield-check" width="18" height="18" style="color:#10B981;"></i> Permisos del Agente
+        </div>
+        <div id="iaPermissions" style="display:flex; flex-direction:column; gap:12px;"></div>
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border); font-size:0.8rem; color:var(--text-muted);">
+          <i data-lucide="lock" width="12" height="12"></i> Todas las acciones requieren tu aprobación para operaciones >50€
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════ PÁGINA: RADAR MACRO ═══════ -->
 <div id="page-radar" class="page">
   <div class="page-header">
