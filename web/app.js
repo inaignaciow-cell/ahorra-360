@@ -194,6 +194,7 @@ function navigate(page) {
   if(page==='tarjeta')    renderTarjeta();
   if(page==='radar')      renderRadar();
   if(page==='autonomia')  renderAutonomia();
+  if(page==='activista')  renderActivista();
   if(typeof lucide !== 'undefined') setTimeout(()=>lucide.createIcons(),50);
 
   window.scrollTo(0, 0);
@@ -2845,4 +2846,101 @@ function iaLaunchMission(type) {
     alerta:      '🔔 Guardián Contratual activo. Monitorizando fechas de vencimiento y cláusulas...',
   };
   showToast(msgs[type] || 'Misión lanzada', 'star');
+}
+
+// ── FASE 29: MODO ACTIVISTA ─────────────────────────────────────────
+function renderActivista() {
+  renderActivistaClaimsList();
+  renderActivistaClassActions();
+  if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 80);
+}
+
+function renderActivistaClaimsList() {
+  const el = document.getElementById('activistaClaimsList');
+  if (!el) return;
+  const claims = [
+    { company: 'Vodafone',  type: 'Subida tarifa 8€/mes sin previo aviso',        status: 'sent',    since: '12 Mar', amount: 96  },
+    { company: 'Endesa',    type: 'Cargo duplicado en factura feb-26',              status: 'won',     since: '02 Mar', amount: 28  },
+    { company: 'Naturgy',   type: 'Penalización de baja anticipada abusiva',        status: 'pending', since: '28 Feb', amount: 150 },
+    { company: 'Iberdrola', type: 'No respetaron precio pactado en contrato',       status: 'sent',    since: '20 Feb', amount: 200 },
+    { company: 'Orange',    type: 'Dificultad extrema para darse de baja',          status: 'pending', since: '10 Feb', amount: 45  },
+  ];
+  const sc = { sent: '#6366F1', won: '#10B981', pending: '#F59E0B' };
+  const sl = { sent: 'Enviado', won: '¡Ganado!', pending: 'Pendiente' };
+  el.innerHTML = claims.map((c, i) => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; ${i < claims.length-1 ? 'border-bottom:1px solid var(--border);' : ''}">
+      <div style="flex:1;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:3px;">
+          <span style="font-weight:700; font-size:0.9rem;">${c.company}</span>
+          <span style="font-size:0.7rem; font-weight:700; color:${sc[c.status]}; background:${sc[c.status]}18; padding:2px 8px; border-radius:20px;">${sl[c.status]}</span>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">${c.type}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Desde ${c.since}</div>
+      </div>
+      <div style="text-align:right; margin-left:12px;">
+        <div style="font-weight:800; color:${c.status === 'won' ? '#10B981' : 'var(--text-primary)'}; font-size:1rem;">€${c.amount}</div>
+        <button style="font-size:0.7rem; color:#EF4444; background:none; border:none; cursor:pointer; padding:0; margin-top:4px; text-decoration:underline;" onclick="showToast('Escalando a OMIC / CNMC automáticamente...', 'star')">
+          ${c.status === 'won' ? 'Ver detalle' : 'Escalar →'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderActivistaClassActions() {
+  const el = document.getElementById('activistaClassActions');
+  if (!el) return;
+  const actions = [
+    { emoji: '⚡', title: 'Compensación a afectados PVPC 2021',    company: 'Mercado regulado',  users: '14.280 afectados', amount: '€240M estimados', joined: true },
+    { emoji: '📱', title: 'Cláusula penalización baja Vodafone',    company: 'Vodafone España',   users: '8.940 afectados',  amount: '€80M estimados',  joined: false },
+    { emoji: '🏠', title: 'Subida unilateral seguros hogar MAPFRE', company: 'MAPFRE Seguros',    users: '3.120 afectados',  amount: '€15M estimados',  joined: false },
+  ];
+  el.innerHTML = actions.map(a => `
+    <div class="saving-card" style="${a.joined ? 'border:2px solid #10B981;' : ''}">
+      <div style="font-size:2rem; margin-bottom:8px;">${a.emoji}</div>
+      <div style="font-weight:700; font-size:0.9rem; margin-bottom:4px; line-height:1.3;">${a.title}</div>
+      <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">${a.company}</div>
+      <div style="font-size:0.75rem; margin-bottom:2px;">👥 ${a.users}</div>
+      <div style="font-size:0.8rem; font-weight:700; color:#10B981; margin-bottom:12px;">${a.amount}</div>
+      <button class="btn ${a.joined ? 'btn-secondary' : ''}" style="${a.joined ? '' : 'background:#EF4444;color:white;'} width:100%; justify-content:center; font-size:0.8rem; padding:8px;" onclick="activistaJoinAction('${a.title}', ${a.joined})">
+        ${a.joined ? '✓ Unido — Ver estado' : 'Unirme a la demanda'}
+      </button>
+    </div>
+  `).join('');
+}
+
+function activistaJoinAction(title, alreadyJoined) {
+  if (alreadyJoined) {
+    showToast('Ya estás inscrito. Estado actual: colegiando demanda colectiva.', 'ok');
+  } else {
+    showToast(`✅ Unido a "${title}". La IA te notificará de cada avance legal.`, 'ok');
+    if (typeof launchConfetti === 'function') launchConfetti();
+    setTimeout(() => renderActivistaClassActions(), 500);
+  }
+}
+
+function activistaNewClaim() {
+  showToast('📋 Abriendo formulario de nueva reclamación...', 'star');
+}
+
+function activistaGenerateBurofax() {
+  const type = document.getElementById('burofaxType')?.value;
+  const company = document.getElementById('burofaxCompany')?.value;
+  const preview = document.getElementById('burofaxPreview');
+  if (!type || !company) { showToast('Selecciona el tipo de reclamación y la empresa', 'warning'); return; }
+
+  const templates = {
+    portabilidad: `Estimados señores de ${company},\n\nPor medio de la presente, les comunico mi intención de solicitar la portabilidad de mis servicios contratados. Les informo de que estoy en proceso de valorar ofertas de otros operadores que resultan significativamente más competitivas.\n\nEn consecuencia, les solicito me contacten a la mayor brevedad con una propuesta de retención acorde a la fidelidad de cliente que he demostrado durante este período.\n\nEn caso de no recibir respuesta satisfactoria en el plazo de 72 horas, procederé a formalizar la baja definitiva.\n\nAtentamente,\n[NOMBRE DEL CLIENTE]`,
+    cargo: `Estimados señores de ${company},\n\nMe dirijo a ustedes para reclamar formalmente la devolución de un cargo indebido detectado en mi última factura por importe de [IMPORTE €].\n\nDicho cargo no corresponde a ningún servicio contratado ni consumo realizado. Adjunto copia de factura como prueba documental.\n\nLes solicito la devolución inmediata en base al artículo 47 del Real Decreto Legislativo 1/2007 de Defensa de los Consumidores.\n\nAtentamente,\n[NOMBRE DEL CLIENTE]`,
+    clausula: `Estimados señores de ${company},\n\nMediante este escrito les notifico que la cláusula [DESCRIPCIÓN] incluida en el contrato suscrito el [FECHA] presenta indicios de ser abusiva conforme a lo establecido en el Real Decreto Legislativo 1/2007.\n\nLes requiero su eliminación inmediata y la confirmación escrita de dicha eliminación en el plazo máximo de 10 días hábiles.\n\nAtentamente,\n[NOMBRE DEL CLIENTE]`,
+    subida: `Estimados señores de ${company},\n\nHe detectado una modificación unilateral de las condiciones económicas de mi contrato sin el preceptivo preaviso de 30 días establecido en el artículo 46 del Real Decreto 899/2009.\n\nExijo la reversión inmediata de dicha modificación y el abono de las diferencias cobradas indebidamente.\n\nAtentamente,\n[NOMBRE DEL CLIENTE]`,
+    baja: `Estimados señores de ${company},\n\nLes comunico mi voluntad de resolver el contrato de servicios con efectos inmediatos.\n\nDe conformidad con lo establecido en la normativa de protección al consumidor, solicito que dicha baja sea tramitada en el plazo máximo de 24 horas sin penalización alguna.\n\nCualquier obstáculo en el proceso será denunciado ante la CNMC y la OMIC municipal.\n\nAtentamente,\n[NOMBRE DEL CLIENTE]`,
+  };
+
+  if (preview) {
+    preview.style.display = 'block';
+    preview.style.whiteSpace = 'pre-wrap';
+    preview.textContent = templates[type] || '';
+    showToast('✅ Burofax generado por IA. Revisa y personaliza antes de enviar.', 'ok');
+  }
 }
