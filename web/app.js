@@ -2613,3 +2613,23 @@ function logoutUser() {
     window.location.href = 'auth.html';
   }
 }
+
+function switchDeepCompare(tab) {
+  const tabs = ['darkmarket', 'subs', 'futuros', 'gemelo'];
+  tabs.forEach(t => {
+    const btn = document.getElementById('tab-dc-' + t);
+    const view = document.getElementById('view-dc-' + t);
+    if(btn) {
+      if(t === tab) {
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-primary');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+      }
+    }
+    if(view) {
+      view.style.display = (t === tab) ? 'block' : 'none';
+    }
+  });
+}
