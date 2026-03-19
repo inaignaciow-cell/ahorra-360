@@ -1,0 +1,386 @@
+import os
+
+css = """
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap');
+  :root { 
+    --primary: #1641B0; --primary-light: #EFF6FF; 
+    --accent: #059669; --accent-light: #ECFDF5; 
+    --dark: #0F172A; --muted: #475569; --border: #E2E8F0;
+  }
+  * { box-sizing: border-box; }
+  body { 
+    margin: 0; padding: 0; 
+    background: #cbd5e1; 
+    font-family: 'Inter', sans-serif; color: var(--dark); 
+    line-height: 1.6;
+  }
+  .doc-container {
+    width: 210mm; 
+    margin: 15mm auto; 
+    background: #fff; 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    padding: 25mm 20mm;
+  }
+  @media print {
+    body { background: #fff; }
+    .doc-container { margin: 0; box-shadow: none; width: 100%; padding: 0; }
+    @page { size: A4 portrait; margin: 15mm; }
+    .page-break { page-break-after: always; }
+    .avoid-break { page-break-inside: avoid; margin-bottom: 20mm; }
+    .print-hide { display: none !important; }
+  }
+  
+  /* Typos */
+  h1 { font-size: 3.5rem; font-weight: 900; line-height: 1.1; margin: 0 0 1.5rem; letter-spacing: -0.03em; color: var(--primary); }
+  h2 { font-size: 2.5rem; font-weight: 900; line-height: 1.2; margin: 3rem 0 1.5rem; color: var(--dark); border-bottom: 4px solid var(--accent); padding-bottom: 10px; display: inline-block; }
+  h3 { font-size: 1.6rem; font-weight: 800; margin: 2rem 0 1rem; color: var(--primary); }
+  h4 { font-size: 1.3rem; font-weight: 800; margin: 1.5rem 0 0.8rem; color: var(--dark); }
+  p { font-size: 1.15rem; color: var(--muted); margin: 0 0 1.5rem; line-height: 1.7; }
+  strong { color: var(--dark); font-weight: 700; }
+  
+  /* Layouts */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: stretch; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
+  
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+  .card-primary { background: var(--primary-light); border: 2px solid var(--primary); }
+  .card-accent { background: var(--accent-light); border: 2px solid var(--accent); }
+  .card-dark { background: var(--dark); border: 2px solid var(--dark); color: #fff; }
+  .card-dark h4 { color: #fff; }
+  .card-dark p { color: rgba(255,255,255,0.8); }
+  
+  /* Cover */
+  .cover { text-align: left; padding: 50mm 0 30mm; border-bottom: 1px solid var(--border); margin-bottom: 20mm; }
+  .cover-logo { font-size: 3rem; font-weight: 900; color: var(--primary); display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
+  .cover-logo span { color: var(--accent); }
+  .cover p.subtitle { font-size: 1.8rem; max-width: 700px; color: var(--muted); line-height: 1.4; font-weight: 500; }
+  
+  /* Utilities */
+  .badge { display: inline-flex; align-items: center; padding: 6px 14px; background: var(--dark); color: #fff; font-size: 0.85rem; font-weight: 800; border-radius: 99px; vertical-align: middle; margin-left: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge.accent { background: var(--accent); }
+  .badge.primary { background: var(--primary); }
+  
+  ul { padding-left: 20px; margin-bottom: 1.5rem; }
+  li { font-size: 1.15rem; color: var(--muted); margin-bottom: 10px; line-height: 1.6; }
+  
+  /* Pipeline */
+  .pipeline-box { display: flex; gap: 20px; margin-bottom: 30px; align-items: flex-start; background: #fff; padding: 30px; border-radius: 16px; border: 2px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.03); }
+  .pipe-num { width: 50px; height: 50px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.5rem; flex-shrink: 0; box-shadow: 0 0 0 8px var(--primary-light); }
+  .pipe-content h4 { margin: 0 0 10px; font-size: 1.4rem; font-weight: 900; letter-spacing: -0.02em; }
+  
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin: 2rem 0; font-size: 1.1rem; }
+  th { background: var(--dark); color: #fff; padding: 18px; text-align: left; font-weight: 700; border-right: 1px solid rgba(255,255,255,0.1); }
+  td { padding: 18px; border-bottom: 1px solid var(--border); color: var(--muted); border-right: 1px solid var(--border); }
+  th:last-child, td:last-child { border-right: none; }
+  tr:nth-child(even) { background: #f8fafc; }
+  
+  /* Custom Alerts */
+  .alert { padding: 25px; border-left: 6px solid var(--accent); background: var(--accent-light); margin: 30px 0; border-radius: 0 12px 12px 0; }
+  .alert strong { color: var(--accent); display: block; margin-bottom: 10px; font-size: 1.2rem; }
+  
+  .focus-box { padding: 25px; border: 2px dashed var(--primary); border-radius: 12px; background: #f8fafc; margin: 2rem 0; }
+  .focus-box h4 { color: var(--primary); margin-top: 0; }
+"""
+
+html_content = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ahorra 360 - Whitepaper Investment Deck</title>
+  <style>{css}</style>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  
+  <div class="print-hide" style="position:fixed; bottom:30px; right:30px; z-index:999;">
+    <button onclick="window.print()" style="background:var(--accent); color:white; padding:15px 30px; border:none; border-radius:99px; font-weight:900; font-size:1.2rem; cursor:pointer; display:flex; gap:12px; align-items:center; box-shadow:0 15px 30px rgba(5,150,105,0.4); font-family:Inter, sans-serif; transition: transform 0.2s;">
+      <i data-lucide="printer"></i> IMPRIMIR PDF COMPLETO
+    </button>
+  </div>
+
+  <div class="doc-container">
+    
+    <!-- PORTADA -->
+    <div class="cover">
+      <div class="cover-logo">
+        <svg width="48" height="48" viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="9" fill="#059669"/><rect x="7" y="22" width="4" height="7" rx="1.5" fill="white" opacity=".6"/><rect x="13" y="17" width="4" height="12" rx="1.5" fill="white" opacity=".8"/><rect x="19" y="12" width="4" height="17" rx="1.5" fill="white"/><path d="M23 10L27 6l0 4" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M27 6v7" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Ahorra <span>360</span>
+      </div>
+      <h1>La Revolución Autónoma <br>de la Economía <br>Familiar.</h1>
+      <p class="subtitle">Inteligencia Artificial, Automatización RPA y Fintech B2B2C para extinguir el "Impuesto a la Pereza" y devolver billones de euros a los hogares.</p>
+      
+      <div style="margin-top: 60px; display: inline-flex; align-items: center; gap: 15px; padding: 15px 25px; background: #f1f5f9; border-radius: 12px; font-weight: 700; color: var(--primary);">
+        <i data-lucide="book-open"></i> Whitepaper Estratégico & Pitch Deck Confidencial | Extendida V3.0
+      </div>
+    </div>
+
+    <!-- SECCIÓN 1 -->
+    <div class="avoid-break">
+      <h2>1. Resumen Ejecutivo (El Asesor Definitivo)</h2>
+      <p>Tras décadas de un mercado dominado por corporaciones que ofuscan sus facturas y de intermediarios comparadores obsoletos estructurados sobre formularios interminables, <strong>Ahorra 360</strong> emerge como el salto evolutivo final: <strong>Un Centro de Mando Financiero 100% Autónomo.</strong></p>
+      <p>No somos un buscador de tarifas donde el usuario debe investigar, leer letra pequeña, llamar y negociar. Somos una capa de software inteligente que fagocita la fricción burocrática. Centralizamos todos los recibos de Luz, Gas, Fibra, Móvil, Seguros y Micro-suscripciones, utilizando LLMs (Large Language Models) y RPA (Robotic Process Automation) para <strong>analizar, reclamar multas, unirse a subastas masivas y cambiar de compañía en plano de fondo garantizando matemáticamente el ahorro.</strong></p>
+    </div>
+
+    <!-- SECCIÓN 2 -->
+    <div class="avoid-break">
+      <h2>2. El Dolor: Un Mercado Viciado por la Opacidad</h2>
+      <p>Nos enfrentamos a la "Tormenta Perfecta": El final de los subsidios post-guerra inflará las tarifas base en la luz de los hogares, mientras las Telcos consolidan oligopolios (fusión Orange-MásMóvil) erradicando guerras de precios. A la ciudadanía se le cobra un <strong>"Impuesto a la Pereza"</strong>.</p>
+      
+      <div class="grid-3" style="margin-top: 30px;">
+        <div class="card card-dark">
+          <i data-lucide="eye-off" style="width:40px;height:40px;margin-bottom:15px;color:rgba(255,255,255,0.7)"></i>
+          <h4>1. Opacidad Asimétrica</h4>
+          <p>El 78% de los españoles es incapaz de leer e interpretar su propia factura de energía. Los proveedores inventan conceptos ("Servicio de Mantenimiento Gold", "Energía Reactiva") para engordar el ticket medio hasta un +25% ocultando su naturaleza opcional.</p>
+        </div>
+        <div class="card">
+          <i data-lucide="clock" style="width:40px;height:40px;margin-bottom:15px;color:var(--primary)"></i>
+          <h4>2. Inflación Silenciosa</h4>
+          <p>Los contratos de telecomunicaciones e internet capturan al usuario con precios de derribo los primeros 12 meses. Tras el mes 13, las bonificaciones caducan sin alerta, disparando el recibo al doble. Ningún humano lleva el registro mental de estas fechas para decenas de servicios.</p>
+        </div>
+        <div class="card">
+          <i data-lucide="phone-off" style="width:40px;height:40px;margin-bottom:15px;color:var(--accent)"></i>
+          <h4>3. Fricción Psicológica</h4>
+          <p>Aun sabiendo que son estafados, llamar a un <i>Call Center</i> extranjero durante 40 minutos en horario laboral, pelear con una máquina IVR y aguantar retenciones agresivas de comerciales produce un bloqueo psicológico masivo. El 65% prefiere <strong>perder dinero a tener que llamar.</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- SECCIÓN 3 -->
+    <div class="avoid-break">
+      <h2>3. El Pipeline "Zero Friction"</h2>
+      <p>Hemos reconstruido desde 0 la arquitectura psicológica de lo que representa interactuar con los suministros del hogar. Nuestro <i>Onboarding</i> pasa de horas a segundos.</p>
+      
+      <div class="pipeline-box">
+        <div class="pipe-num">1</div>
+        <div class="pipe-content">
+          <h4>INGESTA "ZERO-UPLOAD" O LAZY</h4>
+          <p>El usuario jamás rellena el CUPS (Código de suministro), dirección, DNI ni potencias. Simplemente "suelta" un PDF en un Chat de WhatsApp o nos vincula (mediante un token IMAP seguro) con su Gmail. Desde ese segundo, la IA "rastrea y succiona" en milisegundos todas sus facturas históricas mes a mes, de forma invisible.</p>
+        </div>
+      </div>
+      <div class="pipeline-box">
+        <div class="pipe-num">2</div>
+        <div class="pipe-content">
+          <h4>DESENCRIPTACIÓN NEURO-LINGÜÍSTICA</h4>
+          <p>Un modelo LLM propio de extracción OCR digiere facturas caóticas (escaneos, fotos, PDFs ofuscados con marcas de agua). El motor extrae magnitudes críticas: Consumos valle/punta, precios ocultos de mantenimiento, topes de gas y permanencias. Sabe diferenciar la "Tasa de Basura" del propio kWh neto.</p>
+        </div>
+      </div>
+      <div class="pipeline-box">
+        <div class="pipe-num">3</div>
+        <div class="pipe-content">
+          <h4>COMPARACIÓN NEUTRAL EXHAUSTIVA</h4>
+          <p>Al contrario que los comparadores convencionales (alineados al proveedor que mejor comisión CPA da), nuestro algoritmo indexado recalcula el consumo extraído de la factura, inyectándolo microscópicamente contra cientos de tarifas reales vigentes. Filtra "Promociones Trompo" y otorga un TrueScore de verdadero Ahorro Anual Neto.</p>
+        </div>
+      </div>
+      <div class="pipeline-box">
+        <div class="pipe-num">4</div>
+        <div class="pipe-content">
+          <h4>EXPLICACIÓN Y PREDICCIÓN</h4>
+          <p>No arrojamos listas vacías. Nuestro sistema "habla": <em>"Estás desperdiciando 39€/mes en tarifas punta y te cobran un seguro 'TuMantenimientoTotal' que nunca autorizaste. En tu escenario de vida (consumos nocturnos), la tarifa inteligente Octopus relaja tu gasto 468€ al año."</em></p>
+        </div>
+      </div>
+      <div class="pipeline-box" style="border-color: var(--accent); background: var(--accent-light);">
+        <div class="pipe-num" style="background: var(--accent); box-shadow: 0 0 0 8px #d1fae5;">5</div>
+        <div class="pipe-content">
+          <h4 style="color: var(--accent);">ACTUACIÓN DELEGADA (RPA GHOST MODE)</h4>
+          <p>La Joya de la Corona. El usuario decide con 1 click. En lugar de rellenar contratos de la nueva compañía de destino, el usuario habilita el "Ghost Mode". Nuestros <strong>bots de Automatización RPA</strong> inician sesión como el usuario, envían burofaxes reclamando mantenimientos abusivos y tramitan el traspaso a Octopus. El usuario simplemente... sigue con su vida.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 4 -->
+    <div class="avoid-break" style="margin-top: 40px;">
+      <h2>4. Anatomía del Producto: Las 10 Fases Magistrales</h2>
+      <p>El desarrollo tecnológico de Ahorra 360 se ha desplegado ejecutando 10 enormes fases de ingeniería, pasando de un Dashboard básico a una colosal Inteligencia Autónoma con efectos de red.</p>
+
+      <div class="grid-2">
+        <div class="card avoid-break">
+          <h4>Fase 1: Motor Gráfico Ahorra 360</h4>
+          <p>Construcción de la capa Frontend y UX de alta inmersión. Implementación del <i>Dashboard Semafórico</i>, donde el usuario visualiza su hogar centralizado identificando fugas de capital en color rojo (Gastos Óptimos vs Abusivos).</p>
+        </div>
+        <div class="card avoid-break">
+          <h4>Fase 2: Motor Lector IA de Facturas</h4>
+          <p>Desarrollo y simulador del "Cerebro" de Ingesta OCR+LLM capaz de extraer JSONs súper limpios provenientes de fotos desenfocadas o PDFs encriptados de Endesa, devolviendo tablas vectorizadas de consumo exacto listos para ser procesados algebraicamente.</p>
+        </div>
+        <div class="card avoid-break">
+          <h4>Fase 3: Portabilidad "One-Click"</h4>
+          <p>Fusión transaccional. Creación del modal interactivo de confirmación. En esta fase integramos el UI para que el usuario, en 1 gesto, certifique legalmente su intención de cambiar de proveedor conectando indirectamente con las APIs y webhooks comerciales de la empresa destino.</p>
+        </div>
+        <div class="card avoid-break">
+          <h4>Fase 4: Infraestructura y Deploy Cloud</h4>
+          <p>Migración de la lógica de cliente aislado a ecosistemas Vercel Edge con Supabase Database, garantizando un SLA empresarial. Subida a repositorios distribuidos permitiendo CI/CD, asegurando 100% <i>uptime</i> y latencias ínfimas incluso procesando miles de blobs PDF por segundo.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <div class="avoid-break">
+      <div class="card card-primary avoid-break" style="margin-bottom: 25px;">
+        <h4 style="font-size: 1.6rem; margin-top:0;">Fase 5: Radar Subastas Flash (Bolsa de la Luz) <span class="badge primary">FOMO Engine</span></h4>
+        <p style="font-size: 1.15rem;">Una funcionalidad disruptiva. Creamos dinámicas colectivas temporales inspiradas en las "Ventas Flash". Muestra subastas en vivo donde Endesa, Repsol y Holaluz pujan <i>a la baja</i>. Se activa una cuenta atrás ("Faltan 45 minutos para cerrar el grupo de 1.000 hogares") inyectando un <strong>poderosísimo efecto FOMO (Fear Of Missing Out)</strong>. Al hacer click en "Unirme a la Compra", el usuario ve un toast y confeti virtual. <strong>El poder negociador de la masa.</strong></p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card avoid-break">
+          <h4>Fase 6: "Machete" Subscripciones Zombie</h4>
+          <p>Los gastos hormiga aniquilan presupuestos. Este rastreador aísla Netflix, HBO, Gimnasios o Donaciones. Si no las has usado, se marcan en rojo. El botón "Machete" dispara a través de banca abierta (Open Banking) ó mails el cierre absoluto de las tarjetas frente a dichos comercios, cortando el sangrado sin intervención humana adicional.</p>
+        </div>
+        <div class="card avoid-break">
+          <h4>Fase 7: Escudo Anti-Permanencias</h4>
+          <p>El terror del usuario: "Tengo permanencia de 120€". Hemos programado calculadoras de amortización predictiva. A veces, nuestro ahorro anual es mayor que la multa. Más agresivo aún: en negociaciones selectas, <strong>Ahorra 360 sacrifica su propia comisión CPA y asume el pago de la penalización del usuario</strong> para garantizar la fidelización 100% sin fricción.</p>
+        </div>
+      </div>
+
+      <div class="card card-dark avoid-break" style="margin: 25px 0;">
+        <h4 style="font-size: 1.6rem; margin-top:0;">Fase 8: Autonomía Total (GHOST MODE) <span class="badge accent">Core Product</span></h4>
+        <p style="font-size: 1.15rem;">Creación del Centro de Mando IA absoluto. Desglosado en tres módulos letales:</p>
+        <ul style="color: rgba(255,255,255,0.85); font-weight: 500;">
+          <li><strong>Módulo IMAP Zero Upload:</strong> OAuth contra Outlook/Gmail. El sistema huele y descarga las facturas del buzón de correo, sin que el usuario las descargue jamás.</li>
+          <li><strong>Modo Terminal "En la sombra":</strong> Una interfaz visual estilo hacker log <i>Shadow Activity</i>. El usuario ve la ejecución en vivo: "14:03 - Analizando Factura", "14:04 - Bot conectado a portal B2B", "14:05 - Portabilidad solicitada con éxito".</li>
+          <li><strong>Burofax Vengador Automático:</strong> Detecta mantenimientos cobrados ilegalmente en base al RGPD o contratos ofuscados por Naturgy/Endesa. Un botón lanza una Reclamación Retroactiva en pdf con firma electrónica cifrada exigiendo las devoluciones de 36 meses, amenazando con Ministerio de Consumo y recuperando cuotas brutales en cuenta que el usuario daba por perdidas.</li>
+        </ul>
+      </div>
+
+      <div class="grid-2">
+        <div class="card avoid-break">
+          <h4>Fase 9: Onboarding Lazy WhatsApp Bot</h4>
+          <p>Sabemos que descargar Apps genera pereza. En el Hero de nuestra web integramos un widget. El usuario chatea por un simulador de WhatsApp, sube la foto de su router. El Bot "escribe...", genera un dictado de voz y lanza un <strong>Magic Link (Zero-Register)</strong>. Al tocarlo abre la App web de Ahorra 360 ya logeada y con el ahorro listo para ejecutarse. Caza inmediata.</p>
+        </div>
+        <div class="card avoid-break" style="border-right: 6px solid var(--accent)">
+          <h4>Fase 10: HUD Multi-Hogar B2B2C Familiar</h4>
+          <p>El "Bróker Familiar". Los Gen Z o Millenials controlan el dashboard y agregan mediante tarjetas la "Vivienda de la Abuela", "Piso Estudiantes", "Chalet Padres". <strong>Delegación de 1 click por WhatsApp</strong>: Envías el link a tu padre prejubilado, él presiona 'Aceptar' en WhatsApp, y de inmediato tú pasas a gestionar legalmente su factura de la luz desde tu dashboard central.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- SECCIÓN 5 -->
+    <div class="avoid-break">
+      <h2>5. Un Motor de Monetización Inédito Múltiple</h2>
+      <p>Nuestro modelo no depende solo del B2C ni de la publicidad. Aprovechamos asimetrías de mercado en diferentes frentes orquestando una máquina altamente rentable, que escala sin necesitar recursos humanos caros.</p>
+      
+      <div class="alert">
+        <strong>1. El Arbitraje CPA en Grupo (Compra Colectiva)</strong>
+        Las energéticas, aseguradoras y telcos invierten un CPA (Coste por Adquisición) de media de <strong>50€ a 100€</strong> por dar de alta un usuario nuevo asumiéndolo como LTV a 3 años.<br><br>
+        En Ahorra 360, gracias a la <strong>Fase 5 (Bolsa de Subastas)</strong>, no transicionamos usuarios 1 a 1. Reunimos un pool cautivo de 2,000 personas atraídas por la IA. Informamos a Repsol que poseemos la llave. Repsol paga 50€ CPA por cabeza. Activamos la alerta PUSH. 2,000 altas delegadas y tramitadas un martes a las 11:00 am se transmutan en <strong>cientos de miles de euros de beneficio líquido CPA</strong> en horas de facturación bruta.
+      </div>
+      
+      <div class="grid-2">
+        <div class="card avoid-break">
+          <h4>2. SaaS Fremium a B2C Power Users</h4>
+          <p>Suscripción de <strong>4,99€ / mes</strong> orientada al perfil previsor o Multi-Hogar. Provee lectura ilimitada, integraciones IMAP avanzadas y 1 Trámite Anual Ghost Mode donde agentes humanos/robots absorben toda fricción legal sin tope de dificultad. Estabilidad de cashflow (MRR) de libro.</p>
+        </div>
+        <div class="card avoid-break">
+          <h4>3. Red B2B2C de Viralidad Orgánica</h4>
+          <p>El Talón de Aquiles de la adquisición Fintech es el CAC prohibitivo. Gracias a la <strong>Fase 10 (HUD Familiar)</strong>, nuestro CAC decae drásticamente a 1/4. Pagamos marketing para captar a un solo sobrino 'Tech', y este engancha 4 hogares pasivos de la familia al ecosistema.</p>
+        </div>
+        <div class="card avoid-break">
+          <h4>4. Burofaxes Judiciales "Success Fee"</h4>
+          <p>Si la IA de Ghost Mode extrae que la comercializadora lleva 3 años cobrando al cliente protecciones eléctricas extra-limites por valor de 400€. Tramitamos el Burofax automático en Fase 8 legalmente con un despacho aliado, recuperando el dinero de la cuenta ajena y reteniendo un <strong>20% (80€)</strong> como Honorarios de Ganancia Exitosa sin Riesgo.</p>
+        </div>
+        <div class="card avoid-break">
+          <h4>5. Venta de Licencias White-Label B2B Data</h4>
+          <p>La tecnología matriz de análisis OCR+LLM se licencia como Widget en la caja de <strong>Neobancos</strong> y entornos de Nómina HR. Producimos también el mayor "Data-Lake Anonimizado" que rastrea en verdadero tiempo real si la inflación mensual de servicios básicos (Fibra/Luz) sube contra la bajada de las hipotecas, revendible a institucionales.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 6 -->
+    <div class="avoid-break" style="margin-top: 40px;">
+      <h2>6. Dimensionamiento (TAM, SAM, SOM)</h2>
+      <p>Nos enfrentamos ante la digitalización de una utilidad 100% inelástica: Todo el mundo NECESITA la luz, internet, y un seguro. El techo es la banda demográfica bancarizada de un país.</p>
+      
+      <table>
+        <tr>
+          <th style="width: 25%">Métrica</th>
+          <th>Cálculo & Definición</th>
+          <th style="width: 20%">Tamaño Relativo</th>
+        </tr>
+        <tr>
+          <td><strong>TAM (Total Demanda)</strong></td>
+          <td>18,5 Millones de unidades familiares censadas en España con la obligación de poseer entre 3 y 5 suministros críticos mensuales.</td>
+          <td style="font-size: 1.5rem; font-weight: 800; color: var(--dark)">18.5 M</td>
+        </tr>
+        <tr>
+          <td><strong>SAM (Demanda Habilidad)</strong></td>
+          <td>Descontando exclusividad analógica u off-grid, el core de 11.2 millones digitalmente bancarizados susceptibles de utilizar billeteras o transferencias P2P/API.</td>
+          <td style="font-size: 1.5rem; font-weight: 800; color: var(--primary)">11.2 M</td>
+        </tr>
+        <tr>
+          <td><strong>SOM Cautivo (A 3 años)</strong></td>
+          <td>Target accionable inicial (Penetración del 2.5% del SAM). Suponiendo un ARPU combinado de suscripciones + 1 evento CPA + Success Fees, generamos run-rate colosal.</td>
+          <td style="font-size: 1.5rem; font-weight: 800; color: var(--accent)">250,000</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- SECCIÓN 7 -->
+    <div class="avoid-break">
+      <h2>7. Simulación Empírica (La Familia García en Acción)</h2>
+      
+      <div class="focus-box">
+        <h4 style="font-size: 1.5rem; margin-bottom: 20px;">Escenario y Problemática</h4>
+        <div class="grid-2">
+          <div>
+            <p><strong>El Lead:</strong> Javier, 34 años. Consultor IT en Madrid Centro. Sin tiempo libre, estrés agudo. Paga 120€ de Luz y 75€ de Fibra y líneas O2.</p>
+            <p><strong>El Núcleo Heredado:</strong> Su padre, Andrés (70 años, pueblo). Ha estado cautivo de "Iberdrola" y le han clavado un contrato sin regular que lo estrangula en el invierno y unas permanencias encubiertas de la alarma perimetral Securitas.</p>
+          </div>
+          <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid var(--accent);">
+            <p style="margin:0; font-weight:800; color:var(--dark);">Misión Ahorra 360:</p>
+            <p style="margin-top:10px;">Captar a Javier con la Fricción Cero e inocular sus algoritmos defensivos hasta llegar al bolsillo del jubilado, rentabilizando 2 casas a coste Cero CPA de adquisición secundaria.</p>
+          </div>
+        </div>
+      </div>
+
+      <p><strong>Secuencia del Rescate Financiero "Lazy Profitable":</strong></p>
+      <ul>
+        <li><strong>Onboarding (Fase 9):</strong> Javier navega viendo publicidad de Ahorra360, pero no quiere crear cuenta. Tira su Factura en PDF de Endesa directamente a nuestro Bot WhatsApp Web. En 10 segundos el Bot le reporta en audio simulado que le están sobrando 45€ al mes en potencia inútilmente contratada, proveyendo un Magic Link. Clickeando, Javier entra sin login en un Dashboard pre-calentado. <strong>El anzuelo mordido.</strong></li>
+        <li><strong>Añadir a Papá (Fase 10):</strong> Javier observa un botón "<i>+ Conectar Suministros a Familiares</i>". Toca, introduce "+34 600..." y a su padre le llega un SMS: "Javier quiere que la Inteligencia Ahorra 360 gestione tu luz. [OK/Rechazo]". El padre toca [OK]. <i>API Request confirmada.</i> En el Dashboard de Javier, florece el consumo y facturas de su padre.</li>
+        <li><strong>Operación de Salvamento (Fase 6 & 8):</strong> Las alarmas parpadean en el HUD "Casa Padre". El padre pagaba 24€/mes de un seguro inútil que le coló una visita a domicilio de Naturgy Servigas encubierto hace 3 años. Javier presiona "<strong>Ghost Mode Autonomía Total</strong>" y se despreocupa.</li>
+        <li><strong>La Guerra Sorda en Background:</strong> Durante las siguientes 72 horas, los bots RPA descargan correos, la IA emite un Burofax redactado a nombre de Andrés exigiendo nulidad por usura de la cláusula Mantenimiento Integral de Naturgy forzando portabilidad inmediata a Energía Nufri para la jubilación.</li>
+      </ul>
+
+      <div class="card card-accent" style="margin-top: 30px; text-align: center; background: linear-gradient(135deg, var(--accent-light), #fff);">
+        <h3 style="margin-top: 0; color: var(--accent); font-size: 2rem;">Resultado Global en 1 semana</h3>
+        <p style="font-size: 1.3rem; margin-bottom: 20px;"><strong>AHORRO TOTAL FAMILIAR: +1,100 € ANUALES</strong></p>
+        <p style="font-size: 1.1rem; color: var(--muted); margin: 0;"><strong>Ahorra 360</strong> Factura +120€ en Acuerdos CPA con eléctrica remanente destino, se corona asegurando un usuario Premium B2C Javier que abona 4.99€/mes (y ya le da igual pagarlos viendo el Retorno Inmediato ROI) y retiene fondos por Success Fee del burofax resuelto.</p>
+      </div>
+    </div>
+
+    <!-- Cierre -->
+    <div class="avoid-break" style="margin-top: 50px; text-align: center; background: linear-gradient(135deg, var(--primary), var(--dark)); padding: 40mm 20mm; color: white; border-radius: 16px; box-shadow: 0 30px 60px rgba(0,0,0,0.3);">
+      <i data-lucide="zap" style="width: 80px; height: 80px; color: var(--accent); margin-bottom: 25px;"></i>
+      <h2 style="color: white; border: none; font-size: 4rem; margin-bottom: 15px; margin-top: 0;">El futuro no requiere llamadas.</h2>
+      <p style="font-size: 1.8rem; color: rgba(255,255,255,0.9); max-width: 900px; margin: 0 auto; line-height: 1.4;">Construimos el Primer Gestor Financiero donde el cliente es nuestro Rey y las inteligencias artificiales su escuadra personal.</p>
+      <div style="margin-top: 50px; display: inline-flex; align-items: center; gap: 40px;">
+        <div style="text-align: left;">
+          <div style="font-weight: 800; font-size: 1.2rem; color: var(--accent); margin-bottom: 5px;">INVERSIÓN Y DESARROLLO CORPORATIVO</div>
+          <div style="font-size: 1.5rem;">founders@ahorra360.es</div>
+        </div>
+        <div style="height: 50px; width: 2px; background: rgba(255,255,255,0.2);"></div>
+        <div style="text-align: left;">
+          <div style="font-weight: 800; font-size: 1.2rem; color: var(--accent); margin-bottom: 5px;">LIVE DEMO PORTAL B2C</div>
+          <div style="font-size: 1.5rem;">demo.ahorra360.es/dashboard</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
+"""
+
+with open('C:/Users/ignac/Ahorra 360/Ahorra360_Whitepaper_Inversor_V3.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print("Whitepaper V3 Generado Exitosamente en C:/Users/ignac/Ahorra 360/Ahorra360_Whitepaper_Inversor_V3.html")

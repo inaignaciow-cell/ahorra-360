@@ -2,9 +2,12 @@
    AHORRA 360 — app.js  v5
    ═══════════════════════════════════════════ */
 
-// ── SUPABASE ──────────────────────────────
+// ── SUPABASE Y STRIPE ─────────────────────
 const SUPA_URL = 'https://gzkhrgmfbzkskmnselnz.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a2hyZ21mYnprc2ttbnNlbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzAzNzYsImV4cCI6MjA4OTI0NjM3Nn0.t9yFb6qtHQCGfF4n9HOLU-uceIVUYXxDsAp3BSXbl50';
+
+const STRIPE_PK = 'pk_test_51TCUWnCOXrdE1cjZeDaRBfjla49OZwD2An7O6Xvwn0RVjjwe1R1dyqTScuAg86XAn93NY4ZckNPJvjU96f0c07WB00YDjjwUDI';
+const STRIPE_PRICE_ID = 'price_1TCUb7COXrdE1cjZhmXHiPne';
 
 // supabase client — se inicializa en initApp()
 let sbClient = null;
@@ -64,7 +67,7 @@ const MOCK_BILLS = [
     lines:[
       {name:'Fibra 100 Mb simétrico', amount:20.00, info:'Tarifa base fibra', conf:'high'},
       {name:'Línea móvil 30 GB',      amount:18.00, info:'Sin roaming UE', conf:'high'},
-      {name:'Descuento fidelización', amount:-5.00, info:'⚠️ Caduca en 18 días el 04/04/2026', conf:'high'},
+      {name:'Descuento fidelización', amount:-5.00, info:'🟢 Garantía de Ahorro: 276€/año', conf:'high'},
       {name:'IVA (21%)',              amount:11.55, info:'Sobre tarifa base+móvil', conf:'high'},
       {name:'TV Orange (addon)',      amount:5.44,  info:'Cine+Series — ¿lo miras?', conf:'medium'},
     ],
@@ -73,7 +76,7 @@ const MOCK_BILLS = [
       {title:'Cancelar TV Orange', saving:65, effort:'Baja', info:'Si no ves el addon de TV, €5.44/mes de ahorro puro.'},
       {title:'Negociar renovación antes del 04/04', saving:120, effort:'Media', info:'Retención te puede ofrecer mismo precio u otro descuento.'},
     ],
-    chatContext:'factura telecos Orange Fusión, €49.99/mes, promo caduca 04/04/2026, fibra 100Mb + móvil 30GB'
+    chatContext:'factura telecos Orange Fusión, €49.99/mes, sobreprecio mensual detectado, fibra 100Mb + móvil 30GB'
   },
   { id:3, vertical:'gas',        emoji:'🔥', name:'Naturgy — TUR Gas',          amount:38.60, date:'2026-02-10', saving:120, status:'analizado',
     lines:[
@@ -108,7 +111,7 @@ const MOCK_COMPARATOR = {
     {name:'Digi Fibra 1Gb + Móvil 50GB', price:20.00, saving:29.99, badge:'Recomendado IA', recommended:true, details:'Sin cláusulas ocultas. Cobertura: Vodafone.', affiliate:true},
     {name:'MásMóvil Fibra 600Mb + 30GB', price:25.99, saving:24.00, badge:'Popular',        recommended:false, details:'Sin permanencia. Precio estable.', affiliate:true},
     {name:'Simyo Fibra 300Mb + 25GB',    price:29.99, saving:20.00, badge:'',              recommended:false, details:'Fibra Movistar.', affiliate:true},
-    {name:'Orange Fusión 100 (actual)',   price:49.99, saving:0,     badge:'Tu tarifa actual',recommended:false,details:'⚠️ Promo caduca 04/04/2026', affiliate:false},
+    {name:'Orange Fusión 100 (actual)',   price:49.99, saving:0,     badge:'Tu tarifa actual',recommended:false,details:'🛡️ Tarifa 100% protegida por IA', affiliate:false},
   ],
   combustible:[
     {name:'Repsol — C/ Gran Vía',   price:1.749, saving:0.050, badge:'Más barata cerca', recommended:true,  details:'0.3 km · Horario: 24h'},
@@ -119,7 +122,7 @@ const MOCK_COMPARATOR = {
 };
 
 const MOCK_ALERTS = [
-  {id:1, sev:'urgent',  title:'Promo Orange caduca en 18 días', body:'Tu descuento de €5/mes desaparece el 04/04/2026. Sin acción, subirás a €79.99/mes.', cta:'Ver comparador',  ctaFn:"navigate('comparador')", daysLeft:18},
+  {id:1, sev:'urgent',  title:'Sobreprecio detectado en Orange', body:'Estás pagando 24€/mes de más por tu Fibra y Móvil. La IA de Ahorra 360 ha encontrado mejores alternativas.', cta:'Ver comparador',  ctaFn:"navigate('comparador')", daysLeft:18},
   {id:2, sev:'warning', title:'Factura de luz subió un 22%',  body:'Tu último recibo de Endesa: €66.23 vs €54.30 en febrero. La IA detecta la causa.', cta:'Ver detalle', ctaFn:"openBill(1)"},
   {id:3, sev:'info',    title:'BP en Gran Vía bajó a 1.749 €/l', body:'La gasolinera más cercana bajó su precio. Si repostas mañana ahorras ~€3.', cta:'Ver combustible', ctaFn:"setCompTab('combustible',null)"},
 ];
@@ -133,7 +136,7 @@ const MOCK_QUICKWINS = [
 const MOCK_VERTICAL_STATUS = [
   {emoji:'⚡', name:'Luz',        status:'warning', label:'Tarifa suboptimal'},
   {emoji:'🔥', name:'Gas',        status:'warning', label:'En TUR — puede mejorar'},
-  {emoji:'📱', name:'Telecos',    status:'urgent',  label:'⚠ Promo caduca en 18d'},
+  {emoji:'📱', name:'Telecos',    status:'urgent',  label:'🟢 Tarifa garantizada'},
   {emoji:'⛽', name:'Combustible',status:'ok',       label:'Precio razonable'},
   {emoji:'🛡️', name:'Seguros',    status:'none',    label:'Sin analizar'},
 ];
@@ -188,7 +191,12 @@ function navigate(page) {
   if(page==='alertas')    renderAlertas();
   if(page==='hogar')      renderHogar();
   if(page==='perfil')     renderPerfil();
+  if(page==='tarjeta')    renderTarjeta();
   if(typeof lucide !== 'undefined') setTimeout(()=>lucide.createIcons(),50);
+
+  window.scrollTo(0, 0);
+  window.history.replaceState(null, null, '#' + page);
+  document.getElementById('sidebar')?.classList.remove('open');
 
   // Mostrar tutorial inteligente si es la primera vez
   setTimeout(() => showTutorial(page), 400);
@@ -364,19 +372,27 @@ async function saveHogar() {
   const zona     = document.getElementById('hZona')?.value;
   try {
     if (sbClient && currentUser) {
-      const { error } = await sbClient.from('profiles').upsert({
-        id: currentUser.id,
-        hogar_nombre: nombre || null,
-        hogar_cp:     cp || null,
-        hogar_m2:     m2,
-        hogar_personas: personas,
-        hogar_tipo:   tipo,
-        hogar_zona:   zona,
+      // 1. Crear o actualizar el Hogar
+      const { data: hogarData, error: hogarErr } = await sbClient.from('hogares').upsert({
+        owner_id: currentUser.id,
+        nombre: nombre || null,
+        cp:     cp || null,
+        m2:     m2,
+        personas: personas,
+        tipo:   tipo,
+        zona:   zona,
         updated_at:   new Date().toISOString()
-      });
-      if (error) throw error;
+      }, { onConflict: 'owner_id' }).select().single();
+      
+      if (hogarErr) throw hogarErr;
+
+      // 2. Vincular como Hogar principal en el Perfil
+      if (hogarData) {
+        window.currentHogarId = hogarData.id;
+        await sbClient.from('profiles').update({ hogar_principal_id: hogarData.id }).eq('id', currentUser.id);
+      }
     }
-    showToast('Hogar guardado ✓', 'ok');
+    showToast('Hogar guardado en la nube ✓', 'ok');
   } catch(err) {
     showToast('Error al guardar: ' + err.message, 'error');
   }
@@ -392,6 +408,120 @@ async function markAllRead() {
   showToast('Todo marcado como leído ✓', 'ok');
 }
 
+// ── ZERO-CLICK ONBOARDING (FASE 12) ──────────
+function openTrustCenter() {
+  if(document.getElementById('trustCenterLayout')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'trustCenterLayout';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.85);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;perspective:1000px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-surface);width:100%;max-width:850px;border-radius:24px;box-shadow:0 30px 60px rgba(0,0,0,0.4);display:flex;overflow:hidden;animation:slideUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards;min-height:500px">
+      <!-- Panel Izquierdo: Beneficios y Seguridad -->
+      <div style="background:var(--bg-surface-2);padding:40px;width:40%;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--border)">
+        <div style="font-size:3rem;margin-bottom:16px">🛡️</div>
+        <h2 style="font-family:var(--font-heading);font-weight:900;font-size:1.8rem;margin-bottom:16px;line-height:1.2">Conexión Blindada</h2>
+        <p style="color:var(--text-secondary);line-height:1.5;margin-bottom:24px;font-size:0.95rem">La IA de Ahorra 360 se conecta en "Modo Lectura" sin capacidad de operar tu dinero (Normativa RegTech PSD2).</p>
+        <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:12px;color:var(--text-secondary);font-size:0.9rem">
+          <li>🔒 <b>Encriptación AES-256</b> bancaria.</li>
+          <li>📊 <b>Extracción IA</b> de domiciliaciones.</li>
+          <li>🎭 <b>100% Anónimo</b> sin extraer balances.</li>
+        </ul>
+        <div style="margin-top:auto;font-size:0.75rem;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+          <i data-lucide="shield-check" width="14" height="14"></i> Auditado por Banco de España
+        </div>
+      </div>
+      <!-- Panel Derecho: Selector -->
+      <div style="padding:40px;width:60%;display:flex;flex-direction:column;position:relative" id="tcContent">
+        <button class="btn btn-secondary btn-sm" style="position:absolute;top:20px;right:20px;border-radius:50%;width:36px;height:36px;padding:0;justify-content:center" onclick="document.getElementById('trustCenterLayout').remove()"><i data-lucide="x" width="16" height="16"></i></button>
+        <h3 style="font-weight:800;font-size:1.2rem;margin-bottom:8px">Selecciona tu Entidad</h3>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:24px">Elige tu banco principal para descargar todo tu mapa financiero en segundos.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          ${['Santander','BBVA','CaixaBank','Sabadell','Revolut','N26'].map(b => `
+            <button style="background:var(--bg-surface);border:1px solid var(--border);padding:12px 16px;border-radius:12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--color-primary)'" onmouseout="this.style.borderColor='var(--border)'" onclick="startBankSync('${b}')">
+               <div style="width:36px;height:36px;border-radius:8px;background:var(--bg-surface-3);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;color:var(--color-primary)">${b.charAt(0)}</div>
+               <div style="font-weight:600;font-size:0.9rem">${b}</div>
+            </button>
+          `).join('')}
+        </div>
+        <div style="margin-top:32px;text-align:center">
+          <div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px">¿Prefieres conectar tu correo en su lugar?</div>
+          <button class="btn btn-secondary w-full" onclick="startBankSync('Google/Microsoft', true)"><i data-lucide="mail" width="16" height="16"></i> Analizar Bandejas de Entrada (OAuth)</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  if(typeof lucide!=='undefined') lucide.createIcons();
+}
+
+function startBankSync(entity, isEmail = false) {
+  const container = document.getElementById('tcContent');
+  if(!container) return;
+  container.innerHTML = `
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+       <div style="font-size:3.5rem;margin-bottom:16px;animation:spin 1.5s linear infinite">🛠️</div>
+       <h3 style="font-weight:900;font-size:1.4rem;margin-bottom:8px">Conectando con ${entity}</h3>
+       <p style="color:var(--text-secondary);margin-bottom:24px;font-size:0.9rem">Nuestra IA está extrayendo y clasificando movimientos recurrentes de los últimos 12 meses.</p>
+       <div style="background:var(--bg-surface-2);border-radius:99px;height:6px;width:100%;max-width:300px;overflow:hidden;margin-bottom:16px">
+         <div id="syncLoaderBar" style="background:var(--ai-gradient);height:100%;width:0%;transition:width 0.4s ease"></div>
+       </div>
+       <div id="syncStatusObj" style="font-size:0.8rem;color:var(--color-primary);font-weight:600">Validando Certificados...</div>
+    </div>
+  `;
+  
+  const steps = [
+    { p: 15, text: isEmail ? "Conectando POP3/IMAP..." : "Handshake PSD2 (Open Banking)..." },
+    { p: 30, text: "Buscando domiciliaciones activas..." },
+    { p: 55, text: "Detectado: Factura de Iberdrola (98€)..." },
+    { p: 75, text: "Detectado: Netflix Premium Fantasma (12€)..." },
+    { p: 85, text: "Construyendo HUD Financiero local..." },
+    { p: 100, text: "Extracción Zero-Click Completada!" }
+  ];
+
+  let curr = 0;
+  const bar = document.getElementById('syncLoaderBar');
+  const txt = document.getElementById('syncStatusObj');
+  const interval = setInterval(() => {
+    if(curr >= steps.length) {
+      clearInterval(interval);
+      setTimeout(() => finalizeZeroClickOnboarding(), 1400);
+      return;
+    }
+    bar.style.width = steps[curr].p + '%';
+    txt.textContent = steps[curr].text;
+    curr++;
+  }, 950);
+}
+
+function finalizeZeroClickOnboarding() {
+  document.getElementById('trustCenterLayout')?.remove();
+  
+  const magicServices = [
+    { emoji: '⚡', name: 'Luz', provider: 'Iberdrola', amount: 98.40, expiry: '2027-01' },
+    { emoji: '📱', name: 'Telecos', provider: 'Movistar', amount: 89.90, expiry: '' },
+    { emoji: '🛡️', name: 'Seguros', provider: 'Mapfre', amount: 35.00, expiry: '' },
+    { emoji: '🎬', name: 'Suscripción', provider: 'Netflix', amount: 12.99, expiry: '' }
+  ];
+
+  magicServices.forEach(payload => {
+     HOGAR_SERVICES.push({...payload, active:true});
+     if (sbClient && currentUser && window.currentHogarId) {
+        sbClient.from('servicios').insert({
+          hogar_id: window.currentHogarId,
+          tipo: payload.name.toLowerCase(),
+          proveedor: payload.provider,
+          coste_mensual_estimado: payload.amount,
+          es_activo: true
+        }).then(() => {}).catch(e=>console.warn(e));
+     }
+  });
+
+  renderHogar();
+  launchConfetti();
+  navigate('hogar-legacy'); // Renderizar el panel auto-rellenado
+  showToast('¡Magia hecha! Hemos construido tu mapa financiero entero.', 'ok');
+}
+
 async function addService() {
   if(document.getElementById('addServiceOverlay')) return;
   const overlay = document.createElement('div');
@@ -399,7 +529,7 @@ async function addService() {
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
   overlay.innerHTML = `
     <div style="background:var(--bg-surface);padding:28px;border-radius:24px;width:100%;max-width:380px;box-shadow:var(--shadow-xl);border:1px solid var(--border);animation:slideUp .25s ease">
-      <h3 style="font-weight:800;font-size:1.1rem;margin-bottom:18px">+ Añadir servicio</h3>
+      <h3 style="font-weight:800;font-size:1.1rem;margin-bottom:18px">+ Añadir servicio Manual</h3>
       <div class="flex-col gap-3">
         <div class="input-group"><label class="input-label">Tipo de servicio</label>
           <select class="input" id="newSvcType">
@@ -423,55 +553,143 @@ async function addService() {
   document.body.appendChild(overlay);
 }
 
-function confirmAddService() {
+async function confirmAddService() {
   const emojiMap = {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'};
   const type     = document.getElementById('newSvcType')?.value;
   const provider = document.getElementById('newSvcProvider')?.value?.trim();
   const amount   = parseFloat(document.getElementById('newSvcAmount')?.value || '0');
+  
   if (!provider) return showToast('Introduce el nombre del proveedor', 'error');
-  HOGAR_SERVICES.push({
+  
+  const payload = {
     emoji: emojiMap[type]||'📋',
     name: type.charAt(0).toUpperCase()+type.slice(1),
     provider, amount, expiry:'', active:true
-  });
+  };
+  
+  // Guardar en UI Memoria
+  HOGAR_SERVICES.push(payload);
+  
+  // Guardar en Supabase PostgreSQL
+  if (sbClient && currentUser && window.currentHogarId) {
+    try {
+      await sbClient.from('servicios').insert({
+        hogar_id: window.currentHogarId,
+        tipo: type,
+        proveedor: provider,
+        coste_mensual_estimado: amount,
+        es_activo: true
+      });
+    } catch(e) { console.warn("Error guardando servicio en Supabase", e); }
+  }
+
   document.getElementById('addServiceOverlay')?.remove();
   renderHogar();
-  showToast('Servicio añadido ✓', 'ok');
+  showToast('Servicio añadido y sincronizado ✓', 'ok');
 }
 
-// ── ROUTING ─────────────────────────────────
-function navigate(page) {
-  // Ocultar todas las páginas
-  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
-  // Quitar active de todos los nav-items
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-
-  // Mostrar página destino
-  const target = document.getElementById('page-' + page);
-  if(target) target.classList.add('active');
-
-  // Activar nav-item(s) correspondiente(s) (sidebar desk y movil)
-  document.querySelectorAll(`.nav-item[data-page="${page}"]`).forEach(el => el.classList.add('active'));
-
-  // Llama a funciones específicas de renderizado
-  if(page === 'inicio') renderInicio();
-  else if(page === 'bandeja') renderBandeja();
-  else if(page === 'comparador') renderComparador();
-  else if(page === 'score') renderScore();
-  else if(page === 'alertas') renderAlertas();
-  else if(page === 'hogar') renderHogar();
-  else if(page === 'perfil') renderPerfil();
-
-  window.scrollTo(0, 0);
-  window.history.replaceState(null, null, '#' + page);
-  
-  // Close mobile sidebar if open
-  document.getElementById('sidebar')?.classList.remove('open');
-}
 
 // ════════════════════════════════════════════
 //  RENDER FUNCTIONS
 // ════════════════════════════════════════════
+
+// ── INITIATION ────────────────────────────
+// ── GHOST MODE (FASE 8) ───────────────────
+let ghostTerminalInterval = null;
+let isGhostModeActive = false;
+
+function toggleGhostMode(checkbox) {
+  isGhostModeActive = checkbox.checked;
+  
+  if(isGhostModeActive) {
+    document.documentElement.style.setProperty('--bg-body', '#F1F5F9'); 
+    showToast('🚀 Piloto Automático ACTIVADO.', 'ok');
+    logToGhostTerminal('Piloto Automático EN LÍNEA. Inicializando clúster de IA...', 'sys');
+    
+    // start background activity simulation if gmail connected
+    const connected = document.getElementById('gmailConnectedBlock') && document.getElementById('gmailConnectedBlock').style.display !== 'none';
+    if(connected) startGhostActivity();
+    
+    if(!window.rpaActive) {
+      window.rpaActive = true;
+      animateRPA();
+    }
+  } else {
+    document.documentElement.style.setProperty('--bg-body', '#FAFAFA'); 
+    showToast('Piloto Automático DESACTIVADO.', '');
+    logToGhostTerminal('Operaciones en red suspendidas. Control manual restaurado.', 'sys');
+    if(ghostTerminalInterval) clearInterval(ghostTerminalInterval);
+  }
+}
+
+function connectGmail(btn) {
+  btn.innerHTML = '<i data-lucide="loader-2" class="spin" style="margin-right:8px" width="14" height="14"></i> Conectando...';
+  if(typeof lucide!=='undefined') lucide.createIcons();
+  
+  setTimeout(() => {
+    document.getElementById('gmailSyncBlock').style.display = 'none';
+    document.getElementById('gmailConnectedBlock').style.display = 'flex';
+    
+    logToGhostTerminal('OAuth exitoso: vinculado con testuser123@gmail.com.', 'success');
+    logToGhostTerminal('Daemon IMAP levantado. Sincronizando bandejas...', 'sys');
+    showToast('📧 Google Mail enlazado correctamente.', 'ok');
+    
+    if(isGhostModeActive) startGhostActivity();
+  }, 1500);
+}
+
+function disconnectGmail() {
+  document.getElementById('gmailConnectedBlock').style.display = 'none';
+  document.getElementById('gmailSyncBlock').style.display = 'flex';
+  const btn = document.getElementById('btnConnectGmail');
+  btn.innerText = 'Conectar Gmail';
+  logToGhostTerminal('Socket IMAP desconectado por el usuario.', 'warning');
+  if(ghostTerminalInterval) clearInterval(ghostTerminalInterval);
+}
+
+function logToGhostTerminal(msg, type='normal') {
+  const terminal = document.getElementById('ghostTerminalLogs');
+  if(!terminal) return;
+  
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+  
+  const div = document.createElement('div');
+  div.className = 'ghost-log-entry';
+  
+  let colorClass = '';
+  if(type === 'sys') colorClass = 'style="color:#94A3B8"';
+  else if(type === 'success') colorClass = 'class="ghost-log-success"';
+  else if(type === 'warning') colorClass = 'class="ghost-log-warning"';
+  else colorClass = 'style="color:#E0F2FE"';
+  
+  div.innerHTML = `<span class="ghost-log-time">[${timeStr}]</span> <span ${colorClass}>${msg}</span>`;
+  terminal.appendChild(div);
+  terminal.scrollTop = terminal.scrollHeight; // Auto-scroll
+}
+
+function startGhostActivity() {
+  if(ghostTerminalInterval) clearInterval(ghostTerminalInterval);
+  
+  const scenarios = [
+    { msg: "🔎 Scraping de emails recibidos en las últimas 4h...", delay: 2000 },
+    { msg: "📬 Encontrado PDF adjunto <Factura_Endesa_Marzo.pdf>", type: 'user', delay: 4500 },
+    { msg: "⚙️ Parser IA: Extraído CUPS y Consumo (240 kWh). OCR = 99.8%", type: "sys", delay: 6500 },
+    { msg: "🧠 Evaluando en background... El usuario paga 0.16€/kWh.", type: "sys", delay: 9000 },
+    { msg: "💡 Alerta de Ahorro: Repsol a 0.10€/kWh -> Gap anual +172€", type: "success", delay: 11000 },
+    { msg: "🤖 Generando payload de Negociación para Nodo 3 (Bot)...", type: "warning", delay: 14000 }
+  ];
+  
+  let i = 0;
+  ghostTerminalInterval = setInterval(() => {
+    if(i >= scenarios.length) {
+      clearInterval(ghostTerminalInterval);
+      return;
+    }
+    logToGhostTerminal(scenarios[i].msg, scenarios[i].type || 'normal');
+    i++;
+  }, 2500); 
+}
 
 // ── INICIO ────────────────────────────────
 function renderInicio() {
@@ -494,7 +712,7 @@ function renderInicio() {
 
   // AI INSIGHTS
   const insights = [
-    { sev:'urgent',  icon:'🔴', title:'Promo Orange caduca en 18 días', body:'Sin acción subirás de €49,99 a €79,99. Cambiando a Digi ahorras €276/año.', cta:'Ver alternativas', fn:"navigate('comparador')" },
+    { sev:'urgent',  icon:'🎯', title:'Sobreprecio detectado en Orange', body:'Estás pagando de más. Cambiando con un clic a Digi ahorras €276/año garantizados.', cta:'Ver alternativas', fn:"navigate('comparador')" },
     { sev:'warning', icon:'🟡', title:'Factura de luz subió un 22%',    body:'Endesa cobró €66,23 vs €54,30 el mes anterior. La IA encontró 3 causas.', cta:'Ver desglose', fn:'openBill(1)' },
     { sev:'success', icon:'🟢', title:'Tu gas puede bajar €7,40/mes',   body:'Saliendo del TUR a tarifa libre con Endesa Gas ahorras €88/año.', cta:'Comparar gas', fn:"setCompTab('gas',null);navigate('comparador')" },
   ];
@@ -508,6 +726,9 @@ function renderInicio() {
       </div>
       <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="${i.fn}">${i.cta} →</button>
     </div>`).join('');
+
+  // Oracle Phase 15
+  renderOracleChart();
 
   // STATS
   const bills       = getBills();
@@ -553,6 +774,88 @@ function renderInicio() {
         <div style="font-size:.75rem;color:${colorMap[v.status]}">${v.label}</div></div>
       <span>${statusMap[v.status]}</span>
     </div>`).join('');
+
+  // RENDER SUBASTA EN VIVO
+  renderLiveAuction();
+}
+
+let auctionInterval = null;
+function renderLiveAuction() {
+  const radar = document.getElementById('liveAuctionRadar');
+  if(!radar) return;
+  
+  if(radar.dataset.rendered) return; // Ya generado, no reiniciar si navega
+  radar.dataset.rendered = "true";
+
+  let bids = [
+    { provider: 'Iberdrola', price: 0.115, time: 'Hace 5 min' },
+    { provider: 'Naturgy', price: 0.108, time: 'Hace 2 min' }
+  ];
+  let currentBest = 0.108;
+  
+  const updateHTML = () => {
+    radar.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+        <div>
+          <div style="font-size:0.8rem; font-weight:800; color:#D97706; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px">Agrupando usuarios en 28001</div>
+          <div style="font-size:1.1rem; font-weight:800; color:#92400E">Bloque Energía: 342 usuarios listos</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:0.75rem; color:#D97706; font-weight:700; margin-bottom:2px">Tiempo restante</div>
+          <div style="font-size:1.4rem; font-weight:900; color:#B45309; font-family:var(--font-mono); background:#FEF3C7; padding:4px 10px; border-radius:8px; border:1px solid #FCD34D" id="auctionTimer">01:59:59</div>
+        </div>
+      </div>
+      
+      <div style="background:rgba(255,255,255,0.6); border-radius:12px; padding:12px; margin-bottom:16px;">
+        <div style="font-size:0.75rem; color:#92400E; font-weight:700; margin-bottom:8px">ÚLTIMAS PUJAS DE COMERCIALIZADORAS</div>
+        <div id="auctionBidsList" style="display:flex; flex-direction:column; gap:8px">
+          ${bids.map((b, i) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#fff; border-radius:8px; border:1px solid #FDE68A; opacity:${i===0?1:0.6}; animation:slideDown 0.3s ease-out">
+              <div style="display:flex; align-items:center; gap:8px">
+                <span style="font-weight:700; font-size:0.9rem; color:#b45309">${b.provider}</span>
+                <span style="font-size:0.7rem; color:#d97706">${b.time}</span>
+              </div>
+              <div style="font-weight:900; font-size:1.1rem; color:#059669; font-family:var(--font-mono)">${b.price.toFixed(3)} €/kWh</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      <button class="btn" style="width:100%; background:linear-gradient(90deg, #F59E0B, #D97706); border:none; color:white; font-size:1rem; padding:14px; border-radius:12px; box-shadow:0 4px 14px rgba(217, 119, 6, 0.4); display:flex; align-items:center; justify-content:center; gap:8px; font-weight:800; transition:all 0.2s" onclick="joinCoopAuction(this)">
+        <i data-lucide="users" width="20" height="20"></i> UNIRME A LA COMPRA COLECTIVA
+      </button>
+      <div style="text-align:center; margin-top:10px; font-size:0.7rem; color:#B45309; opacity:0.8">Sin compromiso. Solo te cambiaremos si gana una tarifa más barata que la tuya.</div>
+    `;
+    if(typeof lucide!=='undefined') lucide.createIcons();
+  };
+  
+  updateHTML();
+  
+  // Timer visual simulation
+  let timeLeft = 7199;
+  if(auctionInterval) clearInterval(auctionInterval);
+  auctionInterval = setInterval(() => {
+    timeLeft--;
+    const el = document.getElementById('auctionTimer');
+    if(!el) return;
+    const h = Math.floor(timeLeft/3600).toString().padStart(2,'0');
+    const m = Math.floor((timeLeft%3600)/60).toString().padStart(2,'0');
+    const s = (timeLeft%60).toString().padStart(2,'0');
+    el.textContent = `${h}:${m}:${s}`;
+    
+    // Simulate new bids incoming
+    if(timeLeft === 7195) { // after 4 seconds
+      bids.unshift({ provider: 'Endesa', price: 0.098, time: 'Ahora mismo' });
+      updateHTML();
+      showToast('¡Nueva puja en la subasta! Endesa acaba de ofrecer 0.098€/kWh', 'ok');
+    }
+    if(timeLeft === 7188) { // after 11 seconds
+      bids.unshift({ provider: 'Repsol', price: 0.089, time: 'Ahora mismo' });
+      bids[1].time = 'Hace 7 seg';
+      updateHTML();
+      showToast('🔥 ¡Repsol acaba de romper el mercado con 0.089€/kWh!', 'ok');
+    }
+  }, 1000);
 }
 
 // ── BILLS HELPERS ─────────────────────────
@@ -873,6 +1176,9 @@ function renderDetalle() {
 
 // Ventana flotante (Modal) RPA Simulador
 function executeMagicSwitch(provider, savings, penalty = 0) {
+  if (!window.currentProfile?.is_premium) {
+    return checkoutGhostMode(false);
+  }
   if (document.getElementById('magicSwitchOverlay')) return;
   
   const overlay = document.createElement('div');
@@ -1269,11 +1575,11 @@ function renderPerfil() {
     });
   }
 
-  // --- FUMADA FASE 6: MODO MACHETE ---
+  // --- FASE 6: TIJERAS INTELIGENTES ---
   renderZombies();
 }
 
-// ── FASE 6: MODO MACHETE LÓGICA ────────────────
+// ── FASE 6: TIJERAS INTELIGENTES LÓGICA ────────────────
 function renderZombies() {
   const container = document.getElementById('zombieSubscriptions');
   if(!container) return;
@@ -1291,14 +1597,14 @@ function renderZombies() {
           <div style="font-size:2rem; filter:grayscale(0.5); opacity:0.8">${sub.logo}</div>
           <div style="flex:1">
             <div style="font-weight:800; font-size:1.1rem; color:var(--text-primary)">${sub.name}</div>
-            <div style="font-size:0.75rem; color:var(--color-danger); font-weight:600; margin-top:2px">Uso detectado: ${sub.lastUsed}</div>
+            <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-top:2px">Uso detectado: ${sub.lastUsed}</div>
           </div>
           <div style="text-align:right">
             <div style="font-size:1.2rem; font-weight:900; color:var(--color-danger); font-family:var(--font-mono)">€${sub.price}/mes</div>
           </div>
         </div>
-        <button class="btn" style="width:100%; border:none; background: linear-gradient(135deg, #DC2626, #991B1B); color:white; font-weight:800; font-size:1rem; padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 15px rgba(220, 38, 38, 0.4)" onclick="triggerMachete(this, '${sub.name}', ${sub.price})">
-          ACTIVAR MACHETE 🔪
+        <button class="btn" style="width:100%; border:none; background: linear-gradient(135deg, #10B981, #059669); color:white; font-weight:800; font-size:1rem; padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 15px rgba(16, 185, 129, 0.4)" onclick="triggerMachete(this, '${sub.name}', ${sub.price})">
+          CORTAR SUSCRIPCIÓN ✂️
         </button>
       </div>
     `).join('');
@@ -1310,14 +1616,14 @@ function triggerMachete(btnElement, subName, price) {
   const card = btnElement.closest('.card');
   
   // Efecto visual y de sonido (simulado)
-  btnElement.innerHTML = 'Cortando lazo legal... ⚔️';
-  btnElement.style.background = '#000';
+  btnElement.innerHTML = 'Cancelando suscripción de forma segura... 🛡️';
+  btnElement.style.background = '#0F172A';
   
   setTimeout(() => {
     // Aplicar animación CSS de navajazo
     card.classList.add('sliced-card');
     
-    showToast(`🔪 ¡MACHETAZO! Burofax enviado. Has recuperado €${price}/mes de ${subName}.`, 'ok');
+    showToast(`✂️ ¡Suscripción Cancelada! Dejarás de pagar €${price}/mes por ${subName}.`, 'ok');
     launchConfetti();
     
     setTimeout(() => {
@@ -1412,30 +1718,76 @@ async function initApp() {
     }
 
     currentUser = session.user;
+    
+    // Interceptar callback de éxito de Stripe
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('session_id')) {
+      await sbClient.from('profiles').update({ is_premium: true }).eq('id', currentUser.id);
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+      setTimeout(() => {
+        showToast('¡Pago verificado y subscripción activada!', 'ok');
+        if (typeof launchConfetti !== 'undefined') launchConfetti();
+      }, 500);
+    }
+    
     const name  = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
     const email = currentUser.email;
     const init  = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     setSidebarUser(name, email, init);
 
-    // Cargar facturas del usuario desde Supabase
-    const { data: bills, error: billsErr } = await sbClient
-      .from('bills')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('created_at', { ascending: false });
-
-    if (billsErr) {
-      console.warn('[Ahorra360] Error cargando bills:', billsErr.message);
-      USER_BILLS = [];
-    } else {
-      USER_BILLS = (bills || []).map(mapSupabaseBill);
+    // 1. Cargar Perfil y Hogar Principal
+    const { data: profile } = await sbClient.from('profiles').select('*, hogares(*)').eq('id', currentUser.id).single();
+    if (profile) {
+      window.currentProfile = profile;
+      if (profile.is_premium) {
+        const pb = document.getElementById('profilePlanBadge');
+        if(pb) pb.innerHTML = '<span class="badge badge-accent">Plan PRO/Ghost (Activo)</span>';
+      }
+      if (typeof document !== 'undefined') {
+        const pn = document.getElementById('pNombre'); if(pn) pn.value = profile.full_name || '';
+      }
     }
 
-    // Navegar
+    // 2. Cargar Facturas desde la nueva tabla 'facturas' y con RLS
+    const { data: facturas, error: factErr } = await sbClient
+      .from('facturas')
+      .select('*')
+      .order('fecha_emision', { ascending: false });
+
+    if (factErr || !facturas || facturas.length === 0) {
+      console.warn('[Ahorra360] No se encontraron facturas en Supabase o falló RLS. Usando Demo Mock.');
+      USER_BILLS = [];
+    } else {
+      USER_BILLS = facturas.map(mapSupabaseBill);
+    }
+
+    // 3. Cargar Servicios (Suministros regulares)
+    const { data: servicios, error: srvErr } = await sbClient
+      .from('servicios')
+      .select('*')
+      .eq('es_activo', true);
+
+    if (!srvErr && servicios && servicios.length > 0) {
+      // Mapear los servicios de la BDD a la variable en memoria
+      const emojiMap = {luz:'⚡',gas:'🔥',telecos:'📱',combustible:'⛽',seguros:'🛡️'};
+      HOGAR_SERVICES.length = 0; // Limpiar anteriores
+      servicios.forEach(s => {
+        HOGAR_SERVICES.push({
+          emoji: emojiMap[s.tipo] || '📋',
+          name: s.tipo.charAt(0).toUpperCase() + s.tipo.slice(1),
+          provider: s.proveedor,
+          amount: parseFloat(s.coste_mensual_estimado || 0),
+          expiry: s.fecha_renovacion ? s.fecha_renovacion.slice(0,7) : '',
+          active: true
+        });
+      });
+    }
+
+    // Navegar a Inicio o Hash
     const hash = window.location.hash.replace('#','');
     navigate(hash && document.getElementById('page-'+hash) ? hash : 'inicio');
 
-    // Escuchar cambios de sesión (logout desde otra pestaña)
+    // Escuchar cambios de sesión
     sbClient.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') window.location.href = 'auth.html';
     });
@@ -1463,4 +1815,801 @@ if (document.readyState === 'loading') {
 } else {
   // DOM ya estaba listo cuando el script parseó
   initApp();
+}
+
+// ── LOGICA MULTIHOGAR ──────────────────────────
+function renderHogar() {
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function openInviteModal() {
+  const m = document.getElementById('modalInvite');
+  if(m) {
+    m.style.display = 'flex';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+}
+
+function closeInviteModal() {
+  const m = document.getElementById('modalInvite');
+  if(m) m.style.display = 'none';
+}
+
+function copyInvite(btn) {
+  const input = btn.previousElementSibling;
+  input.select();
+  document.execCommand('copy');
+  showToast('¡Enlace de invitación copiado y listo para enviar!', 'ok');
+}
+
+function triggerGhostPadres(btn) {
+  btn.innerHTML = '<span style="animation:spin 1s linear infinite; display:inline-block">⚙️</span> Autorizando Piloto Automático...';
+  btn.style.opacity = '0.8';
+  setTimeout(() => {
+    btn.innerHTML = '<i data-lucide="check-circle" width="14" height="14"></i> Piloto Automático Trabajando (Reclamando)';
+    btn.style.background = '#059669';
+    btn.style.border = 'none';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    showToast('Delegación en Piloto Automático aceptada remotamente. El equipo experto está trabajando.', 'ok');
+  }, 2000);
+}
+
+function animateRPA() {
+  const bar = document.getElementById('rpaBar1');
+  const status = document.getElementById('rpaStatus1');
+  if(!bar || !status) return;
+
+  const steps = [
+    { text: "Navegando a repsol.es...", p: 15 },
+    { text: "Bypassing Captcha v3...", p: 30 },
+    { text: "Extrayendo DNI de vault...", p: 45 },
+    { text: "Rellenando formulario personal...", p: 60 },
+    { text: "Validando IBAN...", p: 75 },
+    { text: "Firmando contrato digital...", p: 90 },
+    { text: "Alta completada ✅", p: 100 }
+  ];
+
+  let current = 0;
+  const rpaInterval = setInterval(() => {
+    if(!isGhostModeActive) return; // Pause if ghost mode is disabled
+    
+    if(current >= steps.length) {
+      clearInterval(rpaInterval);
+      setTimeout(() => {
+          // Restart loop to keep it active for the demo
+          bar.style.transition = 'none';
+          bar.style.width = '0%';
+          status.innerText = "Reiniciando job...";
+          setTimeout(() => { 
+            bar.style.transition = 'width 1s ease'; 
+            current = 0; 
+            animateRPA(); 
+          }, 1500);
+      }, 5000);
+      return;
+    }
+    bar.style.width = steps[current].p + '%';
+    status.innerText = steps[current].text;
+    
+    if(steps[current].p === 100) {
+      logToGhostTerminal("Job RPA [Script_Alta_Repsol] finalizado con ÉXITO.", "success");
+    } else {
+      // Optional logging trace for major steps
+      if(steps[current].p === 30 || steps[current].p === 75) {
+         logToGhostTerminal("RPA Trace: " + steps[current].text, "sys");
+      }
+    }
+    
+    current++;
+  }, 2200);
+}
+
+// ── STRIPE GHOST MODE PAYWALL ─────────────
+async function checkoutGhostMode(fromBurofax = false) {
+  if (window.currentProfile?.is_premium) {
+    showToast('Ya tienes Piloto Automático activo. Gestión sin límites habilitada.', 'ok');
+    return;
+  }
+  if (STRIPE_PK.includes('TU_CLAVE')) {
+    showToast('Modo de prueba Stripe. (El Admin no ha configurado la PK)', 'error');
+    return simulateStripeSuccess(fromBurofax);
+  }
+  showToast('Conectando de forma segura con Stripe...', 'ok');
+  try {
+    const stripe = Stripe(STRIPE_PK);
+    const { error } = await stripe.redirectToCheckout({
+      lineItems: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+      mode: 'subscription',
+      successUrl: window.location.origin + window.location.pathname + '?session_id={CHECKOUT_SESSION_ID}' + window.location.hash,
+      cancelUrl: window.location.href,
+      clientReferenceId: currentUser?.id
+    });
+    if (error) throw error;
+  } catch (err) {
+    showToast('Checkout no configurado correctamente en el servidor.', 'error');
+  }
+}
+
+function simulateStripeSuccess(fromBurofax) {
+   const overlay = document.createElement('div');
+   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:999999;display:flex;align-items:center;justify-content:center;perspective:1000px';
+   overlay.innerHTML = `
+     <div style="background:var(--bg-surface);padding:40px;border-radius:24px;text-align:center;max-width:400px;animation:popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;box-shadow: 0 24px 50px rgba(0,0,0,0.5)">
+       <div style="font-size:3.5rem;margin-bottom:16px;animation:bounce 2s infinite">💳</div>
+       <h2 style="font-weight:900;font-size:1.5rem;margin-bottom:12px;font-family:var(--font-heading)">Piloto Automático Premium</h2>
+       <p style="color:var(--text-secondary);font-size:0.95rem;line-height:1.5;margin-bottom:24px">Se requiere una <b>Suscripción Plus (4,99€/mes)</b> para delegarnos el 100% de la gestión formal y reclamaciones certificadas.</p>
+       <div style="background:var(--color-warning-50);color:var(--color-warning);font-size:0.8rem;padding:12px;border-radius:12px;margin-bottom:24px;border:1px dashed var(--color-warning);text-align:left">
+         <i data-lucide="alert-triangle" width="14" height="14" style="display:inline;vertical-align:-2px"></i> <b>Modo emulador local activo:</b><br/>Como no has configurado tu Stripe API Key real en <code>app.js</code>, simulo el pago al pinchar abajo.
+       </div>
+       <button class="btn btn-primary w-full" id="btnSimulatePay" style="border-radius:99px;font-size:1.05rem;padding:14px;box-shadow:var(--shadow-lg)">Simular Pago Premium</button>
+       <button class="btn btn-secondary w-full mt-2" onclick="this.parentElement.parentElement.remove()">Cancelar</button>
+     </div>
+   `;
+   document.body.appendChild(overlay);
+   if(typeof lucide!=='undefined') lucide.createIcons();
+   
+   document.getElementById('btnSimulatePay').onclick = async () => {
+     overlay.remove();
+     showToast('¡Suscripción adquirida! RPA Ghost Mode DESBLOQUEADO.', 'ok');
+     launchConfetti();
+     
+     if (!window.currentProfile) window.currentProfile = {};
+     window.currentProfile.is_premium = true;
+     
+     const pb = document.getElementById('profilePlanBadge');
+     if(pb) pb.innerHTML = '<span class="badge badge-accent">Plan PRO/Ghost (Activo)</span>';
+     
+     if (sbClient && currentUser) {
+       await sbClient.from('profiles').update({ is_premium: true }).eq('id', currentUser.id);
+     }
+     
+     if (fromBurofax) {
+        triggerBurofax(document.getElementById('btnGhostBurofax') || document.body);
+     }
+   };
+}
+
+function triggerBurofax(btn) {
+  if(!isGhostModeActive) {
+    showToast('Activa el Piloto Automático primero para utilizar la Gestoría Asistida por IA.', 'error');
+    return;
+  }
+  if(!window.currentProfile?.is_premium) {
+     if(btn) btn.id = 'btnGhostBurofax'; // Tag target
+     return checkoutGhostMode(true);
+  }
+  btn.innerHTML = '<i data-lucide="loader-2" class="spin" style="margin-right:8px" width="16" height="16"></i> Generando Reclamación Segura...';
+  if(typeof lucide!=='undefined') lucide.createIcons();
+  
+  logToGhostTerminal('Iniciando procedimiento de reclamación por cobros abusivos...', 'warning');
+  
+  setTimeout(() => {
+    logToGhostTerminal('Generando texto del Burofax empleando jurisprudencia del Tribunal Supremo...', 'sys');
+  }, 1500);
+  
+  setTimeout(() => {
+    logToGhostTerminal('Firmando documento con certificado digital de Ahorra360...', 'sys');
+  }, 3500);
+  
+  setTimeout(() => {
+    btn.style.background = '#0F172A';
+    btn.innerHTML = '<i data-lucide="check-circle" width="16" height="16"></i> Reclamación Enviada';
+    btn.disabled = true;
+    if(typeof lucide!=='undefined') lucide.createIcons();
+    
+    showToast('⚖️ Burofax certificado enviado con éxito. Recuperación en curso.', 'ok');
+    logToGhostTerminal('Burofax certificado enviado. Plazo estimado de devolución: 15 días.', 'success');
+  }, 6500);
+}
+
+// ── CHARTS INTELIGENCIA FASE 12 ──────────────────
+let chartDonut=null, chartBar=null;
+function renderAdvisorCharts() {
+  if (typeof Chart === 'undefined') return;
+
+  const currentAnnualExpense = HOGAR_SERVICES.reduce((acc,s)=>acc + (s.amount||0), 0) * 12;
+  // Ahorro teórico basado en mercado (25%) -> Extracción bancaria cruzada con BBBDD
+  const annualSavingPotential = currentAnnualExpense * 0.25; 
+  
+  document.getElementById('impact5YearsHighlight').innerText = '€' + (annualSavingPotential * 5).toFixed(0);
+
+  // 1. Donut Chart - Gastos
+  const ctxDonut = document.getElementById('expensesDonutChart');
+  if(ctxDonut) {
+    if(chartDonut) chartDonut.destroy();
+    
+    let labels = [], data = [];
+    HOGAR_SERVICES.forEach(s => { labels.push(s.name); data.push(s.amount); });
+    if(data.length === 0) { labels=['Vacío']; data=[1]; } // Fallback vacio
+
+    chartDonut = new Chart(ctxDonut, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: ['#6366F1','#F59E0B','#10B981','#EC4899','#8B5CF6','#3B82F6'],
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#64748b', font:{family:'"Inter",sans-serif', size:11} } }
+        },
+        cutout: '75%'
+      }
+    });
+  }
+
+  // 2. Bar Chart - Proyección a 5 Años
+  const ctxBar = document.getElementById('savingsProjectionChart');
+  if(ctxBar) {
+    if(chartBar) chartBar.destroy();
+    
+    const years = ['Año 1', 'Año 2', 'Año 3', 'Año 4', 'Año 5'];
+    // Gasto acumulado (Si no hace nada)
+    const sinAhorra = years.map((_, i) => currentAnnualExpense * (i+1));
+    // Gasto acumulado (Con Ahorra 360 optimizador)
+    const conAhorra = years.map((_, i) => (currentAnnualExpense - annualSavingPotential) * (i+1));
+
+    chartBar = new Chart(ctxBar, {
+      type: 'bar',
+      data: {
+        labels: years,
+        datasets: [
+          {
+            label: 'Tu banco sin IA',
+            data: sinAhorra,
+            backgroundColor: '#CBD5E1',
+            borderRadius: 6
+          },
+          {
+            label: 'Patrimonio con Ahorra 360',
+            data: conAhorra,
+            backgroundColor: '#10B981',
+            borderRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { color: '#64748b', font:{family:'"Inter",sans-serif'} } }
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color:'rgba(0,0,0,0.04)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+}
+
+// Interceptar navigate para cargar gráficas automáticamente
+const originalNavigate = navigate;
+navigate = function(page) {
+   originalNavigate(page);
+   if(page === 'advisor') {
+      setTimeout(()=>renderAdvisorCharts(), 200);
+   }
+};
+
+// ── AI CONCIERGE (FASE 13) ──────────────────────
+function toggleConcierge() {
+  const widget = document.getElementById('ai-concierge-widget');
+  if(!widget) return;
+  const isClosed = widget.classList.contains('concierge-closed');
+  if(isClosed) {
+    widget.classList.remove('concierge-closed');
+    const badge = widget.querySelector('.fab-badge');
+    if(badge) badge.style.display = 'none';
+    setTimeout(() => document.getElementById('conciergeInput').focus(), 300);
+  } else {
+    widget.classList.add('concierge-closed');
+  }
+}
+
+function handleConciergeInput(e) {
+  if(e.key === 'Enter') sendConciergeMessage();
+}
+
+function appendConciergeMessage(text, type, rawHtml = false) {
+  const container = document.getElementById('conciergeMessages');
+  const msg = document.createElement('div');
+  msg.className = `msg-bubble ${type}`;
+  if(type === 'ai') {
+     msg.innerHTML = rawHtml ? text : `<div style="display:flex;gap:10px"><i data-lucide="bot" width="16" height="16" style="min-width:16px;margin-top:2px;color:var(--color-primary)"></i> <div>${text}</div></div>`;
+  } else {
+     msg.innerHTML = text;
+  }
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+  if(typeof lucide !== 'undefined') lucide.createIcons();
+  return msg;
+}
+
+function showConciergeTyping() {
+  const container = document.getElementById('conciergeMessages');
+  const msg = document.createElement('div');
+  msg.className = `msg-bubble ai`;
+  msg.id = 'conciergeTyping';
+  msg.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeConciergeTyping() {
+  const typing = document.getElementById('conciergeTyping');
+  if(typing) typing.remove();
+}
+
+function sendConciergeMessage() {
+  const input = document.getElementById('conciergeInput');
+  const text = input.value.trim();
+  if(!text) return;
+  
+  appendConciergeMessage(text, 'user');
+  input.value = '';
+  document.getElementById('conciergeSendBtn').disabled = true;
+  
+  // Heuristic NLU Simulation
+  showConciergeTyping();
+  setTimeout(() => {
+    removeConciergeTyping();
+    document.getElementById('conciergeSendBtn').disabled = false;
+    processAgenticAction(text.toLowerCase());
+  }, 1200 + Math.random()*800);
+}
+
+function processAgenticAction(intent) {
+  if(intent.includes('luz') || intent.includes('electrici') || intent.includes('iberdrola') || intent.includes('endesa')) {
+     appendConciergeMessage('Entendido. Estás pagando una media de 98€/mes de Luz. <b>Lanzando Subasta Flash entre 25 comercializadoras energéticas</b>...', 'ai', true);
+     appendConciergeMessage('⚡ Ejecutando Subasta en background...', 'sys');
+     setTimeout(() => { openAuction('Luz'); }, 1500);
+  } 
+  else if(intent.includes('fibra') || intent.includes('movil') || intent.includes('internet') || intent.includes('telef')) {
+     appendConciergeMessage('Detecto sobreprecio en la tarifa de telecomunicaciones de tu hogar principal. No te preocupes, yo me encargo de rastrear la mejor tarifa y hacer la portabilidad. <b>Activando Magic Switch.</b>', 'ai', true);
+     appendConciergeMessage('🔄 Llamando a motor Magic Switch Autónomo...', 'sys');
+     setTimeout(() => { executeMagicSwitch('telecos', 89.90); }, 1500);
+  }
+  else if(intent.includes('banco') || intent.includes('sincroni') || intent.includes('recibo') || intent.includes('cuenta')) {
+     appendConciergeMessage('Sin problema. Para auditar todas tus métricas necesito conectar con tu Banco por Open Banking (Lectura). Abriendo el <b>Trust Center</b> ahora mismo.', 'ai', true);
+     setTimeout(() => { openTrustCenter(); }, 1500);
+  }
+  else if(intent.includes('seguro') || intent.includes('mapfre') || intent.includes('coche') || intent.includes('hogar')) {
+     appendConciergeMessage('Esa póliza está un 18% por encima del mercado. Voy a disparar la <b>Subasta Flash de Seguros</b> para conseguir mejores coberturas al menor precio automáticamente.', 'ai', true);
+     setTimeout(() => { openAuction('Seguro'); }, 1500);
+  }
+  else if(intent.includes('demanda') || intent.includes('reclam') || intent.includes('activista') || intent.includes('denuncia')) {
+     appendConciergeMessage('Has pronunciado la palabra mágica. Nuestro equipo jurídico automatizado tiene varias demandas colectivas abiertas contra abusos de eléctricas. <b>Redirigiendo al Modo Activista...</b>', 'ai', true);
+     setTimeout(() => { navigate('activista'); }, 1500);
+  }
+  else if(intent.includes('solar') || intent.includes('placa') || intent.includes('coche') || intent.includes('electrico') || intent.includes('ev')) {
+     appendConciergeMessage('Entendido. Vamos a simular el impacto económico de cambiar tu infraestructura. <b>Abriendo la IA Gemela del Hogar...</b>', 'ai', true);
+     setTimeout(() => { navigate('hogar'); }, 1500);
+  }
+  else if(intent.includes('oraculo') || intent.includes('predic') || intent.includes('futuro') || intent.includes('fijo')) {
+     appendConciergeMessage('Buena idea. Vamos a consultar el mercado de futuros para ver si te conviene bloquear una tarifa ahora mismo. <b>Consultando el Oráculo predictivo a 12 meses...</b>', 'ai', true);
+     setTimeout(() => { navigate('inicio'); document.getElementById('oracleChart').scrollIntoView({behavior:'smooth'}); }, 1500);
+  }
+  else if(intent.includes('grupo') || intent.includes('colectiv') || intent.includes('club') || intent.includes('10000')) {
+     appendConciergeMessage('¡La unión hace la fuerza! Te voy a llevar a la Plaza Mayor de Ahorra 360 para que te unas a la puja colectiva. <b>Buscando la bolsa activa...</b>', 'ai', true);
+     setTimeout(() => { navigate('inicio'); document.getElementById('btnJoinClub').scrollIntoView({behavior:'smooth'}); }, 1500);
+  }
+  else if(intent.includes('llamar') || intent.includes('voz') || intent.includes('negocia') || intent.includes('telefono') || intent.includes('telefónic')) {
+     appendConciergeMessage('Reconocimiento vocal afirmativo. Preparando el motor sintético ElevenLabs para interceptar a tu proveedor. <b>Iniciando llamada telefónica...</b>', 'ai', true);
+     setTimeout(() => { startPhoneCallSim('Atención Comercial Endesa'); }, 2000);
+  }
+  else if(intent.includes('pasaporte') || intent.includes('identidad') || intent.includes('datos') || intent.includes('b2b') || intent.includes('perfil')) {
+     appendConciergeMessage('Desplegando tu Identidad de Datos Segura verificada por PSD2. Accediendo a tu <b>Pasaporte de Consumidor Premium...</b>', 'ai', true);
+     setTimeout(() => { navigate('pasaporte'); }, 1500);
+  }
+  else if(intent.includes('tarjeta') || intent.includes('cashback') || intent.includes('reembolso') || intent.includes('pagar')) {
+     appendConciergeMessage('Preparando tu panel Fintech. Abriendo sistema de <b>Ahorra 360 Card</b> con tu Cashback disponible listado...', 'ai', true);
+     setTimeout(() => { navigate('tarjeta'); }, 1500);
+  }
+  else if(intent.includes('macro') || intent.includes('radar') || intent.includes('noticias') || intent.includes('bce')) {
+     appendConciergeMessage('Escaneando el ecosistema global de mercados. Localizando impactos monetarios directos en tus contratos. Abriendo el <b>Radar Macro...</b>', 'ai', true);
+     setTimeout(() => { navigate('radar'); }, 1500);
+  }
+  else {
+     appendConciergeMessage('No reconozco esa instrucción específica. Prueba a decirme "Mostrar mi pasaporte", "Noticias económicas", "Comprar coche eléctrico", "Unirme al club de compras" o "Llamar a Iberdrola".', 'ai', true);
+  }
+}
+
+// ── FASE 15: MODO ORÁCULO ──────────────────────
+let oracleChartInstance = null;
+function renderOracleChart() {
+  const ctx = document.getElementById('oracleChart');
+  if(!ctx) return;
+  
+  if(oracleChartInstance) {
+    oracleChartInstance.destroy();
+  }
+  
+  const months = ['Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar'];
+  const baseLine = [65, 62, 70, 85, 110, 80, 55, 60, 75, 90, 85, 70]; // Projected amounts
+  
+  // Colors: green for < 65, yellow for 65-85, red for > 85
+  const bgColors = baseLine.map(val => {
+    if(val >= 100) return 'rgba(239, 68, 68, 0.8)'; // Red
+    if(val >= 80) return 'rgba(245, 158, 11, 0.8)'; // Yellow
+    return 'rgba(16, 185, 129, 0.8)'; // Green
+  });
+
+  if (typeof Chart === 'undefined') return;
+
+  oracleChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [{
+        label: 'Gasto Proyectado (€)',
+        data: baseLine,
+        backgroundColor: bgColors,
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          titleFont: { family: 'Inter', size: 14 },
+          bodyFont: { family: 'Inter', size: 13, weight: 'bold' },
+          padding: 12,
+          callbacks: {
+            label: function(context) {
+              const val = context.raw;
+              if (val >= 100) return `€${val} (Riesgo Alto - TTF Spike)`;
+              if (val >= 80) return `€${val} (Aviso Incertidumbre)`;
+              return `€${val} (Zona Segura)`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: 'Inter', size: 11 }, color: '#64748b' }
+        }
+      }
+    }
+  });
+}
+
+// ── FASE 16: IA GEMELA DEL HOGAR (SIMULADOR) ──
+function runSimulations() {
+  // EV Simulation
+  const evToggle = document.getElementById('simEvToggle');
+  const evKm = parseFloat(document.getElementById('simEvKm').value) || 15000;
+  const evImpact = document.getElementById('simEvImpact');
+  
+  if (evToggle && evToggle.checked) {
+    const gasCost = (7 / 100) * 1.6 * evKm;
+    const evCost = (18 / 100) * 0.1 * evKm;
+    const netSaving = gasCost - evCost;
+    evImpact.textContent = `+ ${Math.round(netSaving)} €/año`;
+    evImpact.style.color = '#10B981';
+  } else if (evToggle) {
+    evImpact.textContent = '--- €';
+    evImpact.style.color = 'var(--text-muted)';
+  }
+
+  // Solar Simulation
+  const solarToggle = document.getElementById('simSolarToggle');
+  const solarKwp = parseFloat(document.getElementById('simSolarKwp').value) || 3.5;
+  const solarImpact = document.getElementById('simSolarImpact');
+  
+  if (solarToggle && solarToggle.checked) {
+    const generation = solarKwp * 1500;
+    const selfConsump = (generation * 0.4) * 0.15;
+    const exports = (generation * 0.6) * 0.06;
+    const totalSolarSaving = selfConsump + exports;
+    
+    solarImpact.textContent = `+ ${Math.round(totalSolarSaving)} €/año`;
+    solarImpact.style.color = '#10B981';
+  } else if (solarToggle) {
+    solarImpact.textContent = '--- €';
+    solarImpact.style.color = 'var(--text-muted)';
+  }
+}
+
+// ── FASE 17: CLUB DE LOS 10.000 ───────────────
+function joinClub10000(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<div style="animation:spin 1s linear infinite; display:inline-block">⚙️</div> Apuntándote...';
+  
+  setTimeout(() => {
+    btn.innerHTML = '<i data-lucide="check-circle" width="16" height="16"></i> ¡Ya estás reservado!';
+    btn.style.background = '#10B981';
+    btn.style.color = 'white';
+    lucide.createIcons();
+    
+    // Animate progress bar slightly
+    const pg = document.getElementById('clubProgressBar');
+    if(pg) pg.style.width = '82.48%';
+    const count = document.getElementById('clubJoinedCount');
+    if(count) count.textContent = '8.248 apuntados (¡Incluido tú!)';
+    
+    showToast('Te has unido al Club de los 10.000. Te avisaremos en 48h con la tarifa ganadora.', 'ok');
+    if(typeof launchConfetti === 'function') launchConfetti();
+  }, 1200);
+}
+
+// ── FASE 18: MODO ACTIVISTA ───────────────────
+function joinLawsuit(btn, type) {
+  btn.disabled = true;
+  btn.innerHTML = '<div style="animation:spin 1s linear infinite; display:inline-block">⚙️</div> Generando mandato legal...';
+  
+  setTimeout(() => {
+    btn.innerHTML = '<i data-lucide="check-circle" width="16" height="16"></i> Apoderamiento Firmado y Presentado';
+    btn.style.background = '#10B981';
+    btn.style.color = 'white';
+    lucide.createIcons();
+    showToast(`Te has adherido a la Demanda Colectiva contra abusos (${type}). Nuestro bufete asociado te confirmará el progreso.`, 'ok');
+  }, 1500);
+}
+
+// ── FASE 20: LLAMADA IA (ElevenLabs Sim) ───────────
+let callInterval = null;
+let scriptTimeouts = [];
+
+function startPhoneCallSim(company = 'Iberdrola') {
+  const modal = document.getElementById('modalPhoneCall');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  lucide.createIcons();
+  
+  document.getElementById('callTargetName').textContent = 'Dialing: ' + company;
+  const timerLabel = document.getElementById('callTimer');
+  const transcriptBox = document.getElementById('callTranscript');
+  const barsArr = document.querySelectorAll('.bar');
+  
+  transcriptBox.innerHTML = '';
+  timerLabel.textContent = '00:00';
+  
+  // Pause waveform initally
+  barsArr.forEach(b => b.style.animationPlayState = 'paused');
+  
+  let callTime = 0;
+  clearInterval(callInterval);
+  scriptTimeouts.forEach(clearTimeout);
+  scriptTimeouts = [];
+  
+  // Scripted conversation mimicking ElevenLabs integration
+  const script = [
+    { t: 0, who: 'sys', text: 'Conectando (Centralita SIP)...' },
+    { t: 3000, who: 'sys', text: 'Llamada respondida.' },
+    { t: 3500, who: 'operadora', text: 'Operador: Hola, ¿con quién hablo?' },
+    { t: 6000, who: 'ia', text: 'IA: Buenos días. Hablo en representación y mandato explícito de Ignacio.' },
+    { t: 10000, who: 'operadora', text: 'Operador: Dígame, ¿el motivo de su consulta?' },
+    { t: 14000, who: 'ia', text: 'IA: Exijo igualación de tarifa base. Su cliente paga 48€ de más respecto a ofertas de sus competidores del mercado.' },
+    { t: 20000, who: 'operadora', text: 'Operador: Eh... Un momento, por favor, voy a revisar la póliza.' },
+    { t: 25000, who: 'sys', text: 'Esperando respuesta... (Música en espera)' },
+    { t: 30000, who: 'operadora', text: 'Operador: Como cliente premium, le aplico un 15% adicional de descuento hoy mismo.' },
+    { t: 35000, who: 'ia', text: 'IA: Trato hecho. Proceda a actualizar las condiciones para el mes en curso o elevaremos baja.' },
+    { t: 39000, who: 'sys', text: '¡Acuerdo cerrado! Extrayendo descuento.' }
+  ];
+
+  // Logic to simulate call duration
+  let hasAnswered = false;
+  scriptTimeouts.push(setTimeout(() => {
+    hasAnswered = true;
+    callInterval = setInterval(() => {
+      callTime++;
+      const s = String(callTime % 60).padStart(2, '0');
+      const m = String(Math.floor(callTime / 60)).padStart(2, '0');
+      timerLabel.textContent = `${m}:${s}`;
+    }, 1000);
+  }, 3000));
+
+  script.forEach(line => {
+    scriptTimeouts.push(setTimeout(() => {
+      const p = document.createElement('div');
+      p.style.fontSize = '0.85rem';
+      p.style.lineHeight = '1.4';
+      p.style.padding = '8px';
+      p.style.borderRadius = '8px';
+      p.style.opacity = '0';
+      p.style.transition = 'opacity 0.3s ease';
+      
+      // Control UI components (e.g., waveform) responding to character
+      if(line.who === 'operadora') {
+        p.style.color = '#D1D5DB';
+        p.style.background = 'rgba(255,255,255,0.05)';
+        barsArr.forEach(b => b.style.animationPlayState = 'paused');
+      } else if(line.who === 'ia') {
+        p.style.color = '#34D399';
+        p.style.background = 'rgba(16,185,129,0.05)';
+        p.style.fontWeight = '700';
+        p.style.borderLeft = '2px solid #34D399';
+        barsArr.forEach(b => b.style.animationPlayState = 'running');
+      } else {
+        p.style.color = '#F59E0B';
+        p.style.fontStyle = 'italic';
+        p.style.textAlign = 'center';
+        barsArr.forEach(b => b.style.animationPlayState = 'paused');
+      }
+      
+      p.textContent = line.text;
+      transcriptBox.appendChild(p);
+      setTimeout(() => p.style.opacity = '1', 50); // fade in
+      
+      // Auto-scroll
+      transcriptBox.scrollTo({ top: transcriptBox.scrollHeight, behavior: 'smooth' });
+      
+      if(line.t === 39000) {
+        scriptTimeouts.push(setTimeout(() => endPhoneCallSim(), 3500));
+      }
+    }, line.t));
+  });
+}
+
+function endPhoneCallSim() {
+  const modal = document.getElementById('modalPhoneCall');
+  if(modal) modal.style.display = 'none';
+  clearInterval(callInterval);
+  scriptTimeouts.forEach(clearTimeout);
+  
+  if(typeof launchConfetti === 'function') launchConfetti();
+  showToast('Acuerdo extrajudicial completado: ¡Tu IA ha bajado la factura -15% por voz!', 'star');
+}
+
+// ── FASE 21: PASAPORTE B2B ───────────────────
+function togglePassportAccess(checkbox, company) {
+  if(checkbox.checked) {
+    showToast(`Acceso Open Data concedido a ${company}. Acaban de licitar para firmar tu contrato B2B.`, 'ok');
+    if(typeof launchConfetti === 'function') launchConfetti();
+  } else {
+    showToast(`Acceso revocado para ${company}. Tu Identidad de Datos vuelve a estar blindada y ciega para ellos.`, 'error');
+  }
+}
+
+// ── PÁGINA TARJETA (FASE 22) ────────────────
+function renderTarjeta() {
+  const holder = document.getElementById('cardHolderName');
+  if (holder) holder.textContent = currentUser?.user_metadata?.full_name || 'USUARIO AHORRA';
+  
+  const txList = document.getElementById('tarjetaTxList');
+  if (!txList) return;
+  
+  const ctx = [
+    { date: 'Hoy, 14:30', name: 'Cashback Amazon', amount: '+€2.40', type: 'plus' },
+    { date: 'Ayer, 09:15', name: 'Cashback Uber', amount: '+€1.10', type: 'plus' },
+    { date: '10 Mar, 10:00', name: 'Suscripción Ahorra 360 Plus', amount: '-€9.99', type: 'minus' },
+    { date: '01 Mar, 21:40', name: 'Cashback Mercadona', amount: '+€4.50', type: 'plus' },
+  ];
+  
+  txList.innerHTML = ctx.map((t, i) => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:${i < ctx.length - 1 ? '1px solid var(--border)' : 'none'};">
+       <div style="display:flex; align-items:center; gap:16px;">
+          <div style="width:40px; height:40px; border-radius:50%; background:var(--bg-surface-2); display:flex; align-items:center; justify-content:center; color:var(--text-secondary);">
+             <i data-lucide="${t.type === 'plus' ? 'arrow-down-left' : 'arrow-up-right'}" width="18" height="18" style="color:${t.type === 'plus' ? 'var(--color-accent)' : 'var(--text-primary)'};"></i>
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:0.95rem;">${t.name}</div>
+            <div style="font-size:0.8rem; color:var(--text-muted);">${t.date}</div>
+          </div>
+       </div>
+       <div style="font-weight:700; font-size:1.1rem; color:${t.type === 'plus' ? 'var(--color-accent)' : 'var(--text-primary)'};">
+          ${t.amount}
+       </div>
+    </div>
+  `).join('');
+}
+
+// ── SUPABASE INITIALIZATION & AUTH ────────
+document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof SUPA_URL !== 'undefined' && !SUPA_URL.includes('your-project')) {
+    try {
+      if (window.supabase) {
+        sbClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+      }
+    } catch(e) { console.warn('Supabase init failed:', e); }
+  }
+
+  if (isDashboard() && sbClient) {
+    const { data: { session } } = await sbClient.auth.getSession();
+    if (!session && !DEMO_MODE) {
+      window.location.href = 'auth.html';
+      return;
+    }
+    
+    sbClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        window.location.href = 'auth.html';
+      } else if (session) {
+        currentUser = session.user;
+        updateUserUI(currentUser);
+      }
+    });
+    
+    if (session) {
+      currentUser = session.user;
+      updateUserUI(currentUser);
+      // Cargar hogar principal (Fase 11 Data Integration)
+      loadUserHogarData(session.user.id);
+    }
+  }
+});
+
+function setSidebarUser(name, email, init) {
+  const profileAvatar = document.getElementById('profileAvatar');
+  const profileName = document.getElementById('profileName');
+  
+  if (profileAvatar) profileAvatar.textContent = init || 'UA';
+  if (profileName) profileName.textContent = name || 'Usuario';
+  
+  // Update desktop sidebar info if available
+  document.querySelectorAll('.user-info .user-name').forEach(el => el.textContent = name || 'Usuario');
+  document.querySelectorAll('.user-info .user-plan').forEach(el => el.textContent = email || '');
+}
+
+function updateUserUI(user) {
+  const name = user?.user_metadata?.full_name || user.email;
+  const init = name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase() || 'UA';
+  setSidebarUser(name, user.email, init);
+  
+  // Populate profile inputs if in DOM
+  const pName = document.getElementById('pNombre');
+  const pEmail = document.getElementById('pEmail');
+  if (pName && !pName.value) pName.value = user?.user_metadata?.full_name || '';
+  if (pEmail && !pEmail.value) pEmail.value = user.email || '';
+}
+
+async function loadUserHogarData(userId) {
+  if (!sbClient) return;
+  try {
+    const { data: hogar, error } = await sbClient.from('hogares').select('*').eq('owner_id', userId).single();
+    if (hogar) {
+      window.currentHogarId = hogar.id;
+      // Actualizar UI del hogar con los datos
+      const hNom = document.getElementById('hNombre'); if (hNom) hNom.value = hogar.nombre || '';
+      const hCP = document.getElementById('hCP'); if (hCP) hCP.value = hogar.cp || '';
+      const hM2 = document.getElementById('hM2'); if (hM2) hM2.value = hogar.m2 || '';
+      const hPex = document.getElementById('hPersonas'); if (hPex) hPex.value = hogar.personas || '';
+      
+      // Load services linked to this hogar
+      const { data: svcs } = await sbClient.from('servicios').select('*').eq('hogar_id', hogar.id).eq('es_activo', true);
+      if (svcs && svcs.length > 0) {
+         // Limpiar locales
+         HOGAR_SERVICES.length = 0;
+         svcs.forEach(s => {
+           HOGAR_SERVICES.push({
+             name: s.tipo.charAt(0).toUpperCase() + s.tipo.slice(1),
+             provider: s.proveedor,
+             amount: s.coste_mensual_estimado || 0,
+             emoji: s.tipo==='luz'?'⚡':s.tipo==='gas'?'🔥':s.tipo==='telecos'?'📱':'🛡️',
+             active: s.es_activo,
+             expiry: ''
+           });
+         });
+         if(currentPage === 'hogar' || currentPage === 'inicio') {
+            renderHogar();
+            renderInicio();
+         }
+      }
+    }
+  } catch(e) { console.warn('UserData load error:', e); }
+}
+
+function logoutUser() {
+  if (sbClient) {
+    sbClient.auth.signOut();
+  } else {
+    window.location.href = 'auth.html';
+  }
 }

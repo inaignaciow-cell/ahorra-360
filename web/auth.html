@@ -245,7 +245,7 @@
             </div>
             <div class="input-group">
               <label class="input-label">Contraseña</label>
-              <input type="password" class="input" placeholder="Mínimo 8 caracteres" id="regPassword" autocomplete="new-password" />
+              <input type="password" class="input" placeholder="Mínimo 8 caracteres" id="regPassword" minlength="8" required autocomplete="new-password" />
               <div class="pwd-strength" id="pwdStrength">
                 <div class="pwd-bar" id="pb1"></div>
                 <div class="pwd-bar" id="pb2"></div>
@@ -483,6 +483,17 @@
     }
 
     async function setHogar(name) {
+      if (_sb) {
+        var { data: { session } } = await _sb.auth.getSession();
+        if (session && session.user) {
+          try {
+            await _sb.from('hogares').insert({
+              owner_id: session.user.id,
+              nombre: name
+            });
+          } catch(e) { console.warn(e); }
+        }
+      }
       showToast('✓ Hogar "' + name + '" creado', 'ok');
       setTimeout(function() { goToView('aha'); }, 800);
     }

@@ -419,10 +419,10 @@
               <i data-lucide="zap" width="18" height="18"></i>
               Empezar gratis
             </a>
-            <a href="dashboard.html" class="btn btn-secondary btn-lg">
-              <i data-lucide="eye" width="18" height="18"></i>
-              Ver demo
-            </a>
+            <button onclick="openWaSimulator()" class="btn btn-lg wa-btn-hero" style="background:#25D366; color:white; border:none; box-shadow:0 10px 25px -5px rgba(37, 211, 102, 0.4); display:flex; gap:8px; align-items:center; font-weight:700">
+              <i data-lucide="message-circle" width="20" height="20"></i>
+              Prueba el Bot de WhatsApp
+            </button>
           </div>
           <div class="hero-trust">
             <div class="trust-avatars" aria-hidden="true">
@@ -860,6 +860,138 @@
 
     // ── LUCIDE ICONS ──────────────────────────────────
     if (typeof lucide !== 'undefined') lucide.createIcons();
+  </script>
+
+  <!-- WA SIMULATOR MODAL -->
+  <div class="wa-backdrop" id="waModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:999; align-items:center; justify-content:center; padding:16px;">
+    <div class="wa-window" style="background:#EFEAE2; width:100%; max-width:400px; height:600px; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); position:relative; transform:translateY(20px); opacity:0; transition:all 0.3s cubic-bezier(0.16,1,0.3,1);">
+      <!-- Header -->
+      <div style="background:#075E54; padding:12px 16px; display:flex; align-items:center; gap:12px; color:white;">
+        <button onclick="closeWaSimulator()" style="background:none; border:none; color:white; cursor:pointer"><i data-lucide="arrow-left" width="20" height="20"></i></button>
+        <div style="width:40px; height:40px; background:white; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:4px">
+          <svg width="24" height="24" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="36" height="36" rx="9" fill="url(#wa-logo-f)"/><defs><linearGradient id="wa-logo-f" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1641B0"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs><rect x="13" y="17" width="4" height="12" rx="1.5" fill="white"/></svg>
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:600; font-size:15px">Ahorra 360 Bot</div>
+          <div style="font-size:12px; opacity:0.8" id="waStatus">línea</div>
+        </div>
+      </div>
+      
+      <!-- Chat Body -->
+      <div style="flex:1; padding:20px 16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; background-image:url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size:cover; opacity:0.95" id="waChatBox">
+        <!-- Messages will be injected here -->
+      </div>
+      
+      <!-- Footer (Input) -->
+      <div style="background:#f0f0f0; padding:10px 16px; display:flex; align-items:center; gap:12px">
+        <div style="flex:1; background:white; border-radius:24px; padding:10px 16px; display:flex; align-items:center; gap:12px; color:#888;">
+          <i data-lucide="smile" width="20" height="20"></i>
+          <span style="font-size:14px; flex:1" id="waInputText">Escribe un mensaje...</span>
+          <i data-lucide="paperclip" width="20" height="20"></i>
+        </div>
+        <div style="width:44px; height:44px; background:#008f68; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; cursor:pointer" id="waSendBtn" onclick="runWaSimulation()">
+          <i data-lucide="mic" width="20" height="20" id="waSendIcon"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .wa-bubble { padding:8px 12px; border-radius:12px; font-size:14px; line-height:1.4; max-width:85%; position:relative; box-shadow:0 1px 1px rgba(0,0,0,0.1); animation:waPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; transform-origin: top left; }
+    .wa-bubble.in { background:white; align-self:flex-start; border-top-left-radius:0; transform-origin: top left; }
+    .wa-bubble.out { background:#dcf8c6; align-self:flex-end; border-top-right-radius:0; transform-origin: top right; }
+    @keyframes waPop { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
+    .wa-time { font-size:10px; color:#999; float:right; margin:4px 0 -4px 8px; display:flex; align-items:center; gap:4px; }
+    .wa-btn-hero:hover { transform: translateY(-2px); box-shadow:0 15px 30px -5px rgba(37, 211, 102, 0.5) !important; filter: brightness(1.05); }
+  </style>
+
+  <script>
+    function openWaSimulator() {
+      const modal = document.getElementById('waModal');
+      modal.style.display = 'flex';
+      setTimeout(() => {
+        modal.querySelector('.wa-window').style.opacity = '1';
+        modal.querySelector('.wa-window').style.transform = 'translateY(0)';
+      }, 10);
+      
+      window.waStep = 0;
+      const chat = document.getElementById('waChatBox');
+      chat.innerHTML = `
+        <div style="background:#e1f5fe; align-self:center; padding:6px 14px; border-radius:16px; font-size:11px; color:#555; margin-bottom:8px; box-shadow:0 1px 1px rgba(0,0,0,0.1)">Hoy</div>
+        <div class="wa-bubble in">
+          👋 ¡Hola! Soy el Copiloto IA de Ahorra 360.<br/><br/>Entiendo que da pereza registrarse en otra web más. Mándame aquí una foto o el PDF de tu factura de luz o móvil y yo me encargo de todo el proceso. ✨
+          <div class="wa-time">${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      `;
+      document.getElementById('waSendIcon').setAttribute('data-lucide', 'paperclip');
+      document.getElementById('waInputText').innerHTML = 'Sube tu factura.pdf';
+      document.getElementById('waInputText').style.color = '#00a884';
+      document.getElementById('waInputText').style.fontWeight = 'bold';
+      lucide.createIcons();
+    }
+
+    function closeWaSimulator() {
+      const modal = document.getElementById('waModal');
+      modal.querySelector('.wa-window').style.opacity = '0';
+      modal.querySelector('.wa-window').style.transform = 'translateY(20px)';
+      setTimeout(() => { modal.style.display = 'none'; }, 300);
+    }
+
+    function appendWaMsg(content, type="in") {
+      const chat = document.getElementById('waChatBox');
+      const time = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+      const ticks = type==="out" ? '<i data-lucide="check-check" width="14" height="14" style="color:#53bdeb"></i>' : '';
+      chat.innerHTML += `<div class="wa-bubble ${type}">${content}<div class="wa-time">${time} ${ticks}</div></div>`;
+      chat.scrollTop = chat.scrollHeight;
+      lucide.createIcons();
+    }
+
+    function runWaSimulation() {
+      if(window.waStep === 1) {
+        appendWaMsg("OK", "out");
+        document.getElementById('waStatus').innerText = 'escribiendo...';
+        document.getElementById('waInputText').innerText = 'Mensaje enviado.';
+        document.getElementById('waSendBtn').style.opacity = '0.5';
+        
+        setTimeout(() => {
+          document.getElementById('waStatus').innerText = 'en línea';
+          appendWaMsg(`¡Magia realizada! 🧙‍♂️<br/><br/>He contactado con Repsol y gestionado tu alta provisional. Como este canal es solo demostrativo, te he creado un <b>Enlace Mágico</b>.<br/><br/>Entra aquí sin contraseña para ver cómo finalizo los trámites burocráticos y te defiendo legalmente: <a href="dashboard.html#autonomia" style="color:white; font-weight:bold; display:block; margin-top:12px; padding:10px; background:#00a884; border-radius:8px; text-align:center; text-decoration:none; box-shadow:0 2px 4px rgba(0,0,0,0.1)"><i data-lucide="zap" style="display:inline; width:14px; height:14px; vertical-align:-2px"></i> Ir al Panel Autónomo</a>`, "in");
+        }, 1800);
+        return;
+      }
+
+      if(document.getElementById('waInputText').innerText !== 'Sube tu factura.pdf') return;
+
+      document.getElementById('waInputText').innerText = '';
+      document.getElementById('waSendIcon').setAttribute('data-lucide', 'mic');
+      lucide.createIcons();
+
+      appendWaMsg(`<div style="display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.7); padding:8px; border-radius:8px; margin-bottom:4px; border:1px solid rgba(0,0,0,0.05)"><i data-lucide="file-text" style="color:#ef4444" width="24" height="24"></i><div style="flex:1"><div style="font-weight:bold;font-size:13px">Factura_Endesa_Abril.pdf</div><div style="font-size:11px;color:#888">1 página • PDF Document</div></div></div>`, "out");
+
+      document.getElementById('waStatus').innerText = 'escribiendo...';
+
+      setTimeout(() => {
+        document.getElementById('waStatus').innerText = 'grabando audio...';
+      }, 1500);
+
+      setTimeout(() => {
+        document.getElementById('waStatus').innerText = 'escribiendo...';
+        appendWaMsg(`<div style="display:flex; align-items:center; gap:8px"><i data-lucide="play-circle" style="color:#00a884" width="28" height="28"></i><div style="flex:1; height:3px; background:#ddd; position:relative; border-radius:2px"><div style="position:absolute; width:12px; height:12px; border-radius:50%; background:#00a884; top:-4px; left:0"></div></div><div style="font-weight:600; color:#888; font-size:11px">0:07</div><div style="width:30px; height:30px; border-radius:50%; background:var(--color-primary-100); border:1px solid var(--color-primary); display:flex; align-items:center; justify-content:center"><i data-lucide="bot" width="16" height="16" style="color:var(--color-primary)"></i></div></div><div style="font-size:11px; margin-top:8px; opacity:0.8; font-style:italic">🔊 Audio generado por la IA de Ahorra 360</div>`, "in");
+      }, 3500);
+
+      setTimeout(() => {
+        document.getElementById('waStatus').innerText = 'en línea';
+        appendWaMsg(`Resumiendo el audio: Te están cobrando la luz a <b>0.16€ kWh</b> y tienes una penalización por "Servicio Relax" oculta.<br/><br/>He encontrado una tarifa de mercado libre en Repsol a <b>0.10€ kWh</b>. Cambiarte supone <b>ahorrar más de 240€ al año</b> de inmediato 📉<br/><br/>¿Quieres que gestione yo el cambio de compañía ahora mismo en 2 minutos mediante mi Enjambre RPA? Responde <b>OK</b>.`, "in");
+        
+        document.getElementById('waInputText').innerText = 'Escribe (o pulsa el botón)...';
+        document.getElementById('waInputText').style.color = '#888';
+        document.getElementById('waInputText').style.fontWeight = 'normal';
+        document.getElementById('waSendIcon').setAttribute('data-lucide', 'send');
+        lucide.createIcons();
+        window.waStep = 1;
+
+      }, 6500);
+    }
   </script>
 </body>
 </html>

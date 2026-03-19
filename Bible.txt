@@ -1,0 +1,735 @@
+
+
+AHORRA 360
+Features Bible
+Las 9 funcionalidades que van a callar al mercado
+Documento de desarrollo de producto · Confidencial · v1.0 · 2025
+01MODO ORÁCULO
+Predicción de facturas hasta 12 meses
+02IA GEMELA DEL HOGAR
+Gemelo digital que simula tu consumo
+03CLUB DE 10.000
+Negociación colectiva automática
+04MODO ACTIVISTA
+Demandas colectivas con IA
+05MAPA DE VERGÜENZA
+Comparativa de precios por barrio
+06VOZ IA NEGOCIADORA
+La IA llama y negocia por ti
+07PASAPORTE DE CONSUMIDOR
+Tu score que las empresas compiten por mejorar
+08AHORRA 360 CARD
+Tarjeta que paga tus facturas
+09RADAR MACRO
+Anticipa el mercado energético 90 días antes
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 2
+01
+INTELIGENCIA PREDICTIVA
+Modo Oráculo
+Ve tus facturas antes de que lleguen. Actúa antes de que suban los precios.
+¿Qué es?
+El Modo Oráculo es un motor de predicción que combina datos de mercados energéticos de futuros
+(TTF, MIBGAS, OMIE), modelos meteorológicos estacionales, histórico personal del usuario y
+cambios regulatorios anunciados para proyectar las próximas 12 facturas con una precisión
+estimada del 85-92%. El usuario ve su gasto futuro antes de que llegue la factura y puede actuar:
+contratar una tarifa fija antes de una subida, reducir consumo en meses críticos o cambiar de
+proveedor con ventaja temporal.
+Problema que resuelve
+Hoy el usuario es completamente reactivo: recibe la factura, se sorprende del importe y ya no
+puede hacer nada. Con el Oráculo se convierte en proactivo: sabe en febrero que en agosto va a
+pagar 40€ más y puede bloquearse en una tarifa fija ahora, ahorrando ese incremento antes de que
+llegue.
+Arquitectura técnica
+CapaFuente de datosTecnologíaFrecuencia
+Precios
+energéticos
+OMIE, ESIOS, REE, TTF
+RotterdamAPI scraping + streamingTiempo real
+Meteorología
+AEMET, Climate Forecast
+System
+REST API + ML modelo
+regresiónDiario
+Regulación
+BOE, CNMC, Diario Oficial
+UENLP clasificador + alertasSemanal
+Histórico usuarioFacturas OCR procesadasSeries temporales LSTMMensual
+Mercado tarifas
+CNMC comparador +
+scraping legalIndexación periódicaSemanal
+Modelo de predicción
+Se entrena un modelo LSTM (Long Short-Term Memory) por usuario con sus últimas 24 facturas.
+Este modelo se combina con un modelo global de mercado (XGBoost sobre precios de futuros)
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 3
+mediante un ensemble ponderado. La incertidumbre se modela con intervalos de confianza al 80%
+y al 95%, mostrados al usuario como rangos ("entre 58€ y 74€") en lugar de cifras falsamente
+exactas.
+UX y presentación al usuario
+Pantalla principal
+• Gráfica de barras de 12 meses con
+colores semáforo: verde (igual o mejor),
+ámbar (+10-20%), rojo (+20%).
+• Tooltip interactivo por mes con el desglose
+de factores: precio kWh, consumo
+estimado, impuestos y componente de
+incertidumbre.
+• CTA contextual en meses de alerta:
+"Bloquea tarifa fija ahora y ahorra hasta 45€
+en agosto".
+Notificaciones push
+• Alerta 45 días antes de un mes
+proyectado como caro.
+• Notificación cuando el precio futuro TTF
+supera umbral definido.
+• Resumen mensual: "Tu predicción del mes
+pasado fue 97% precisa".
+• Push especial en eventos macro:
+apagones, elecciones energéticas, OPAs.
+85–92%45 días
+12
+meses+190€
+precisión estimadaantelación media de alertahorizonte de predicción
+ahorro medio anual por
+usuario proactivo
+MONETIZACIÓN: El Oráculo refuerza la retención del plan Premium. Usuario que ve sus
+facturas futuras cancela mucho menos (churn estimado -40%). Además abre una vertical de
+"tarifa fija garantizada": Ahorra 360 actúa de intermediario, compra futuros energéticos y
+vende al usuario una tarifa fija con margen. Potencial de margen bruto: 8-15€/usuario/mes.
+Riesgos y mitigación
+RiesgoImpactoMitigación
+Predicción muy inexacta en crisis
+energéticas (guerra, sequía)Alto
+Mostrar siempre intervalos de confianza, nunca
+cifras exactas. Disclaimer claro.
+Regulación limita publicar precios
+futuros a consumidoresMedio
+Asesoría legal CNMC. Formato "orientativo" en lugar
+de "precio oficial".
+El usuario actúa mal sobre
+predicciones incorrectasMedio
+No recomendar contratos de larga duración.
+Siempre cláusula de cancelación libre.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 4
+02
+SIMULACIÓN AVANZADA
+IA Gemela del Hogar
+Un clon digital de tu hogar que aprende, predice y te muestra escenarios
+alternativos.
+¿Qué es?
+La IA Gemela construye un modelo digital completo del hogar del usuario: aprende el perfil de
+consumo por franja horaria, estación, número de ocupantes y tipo de electrodomésticos. Una vez
+entrenado, permite simular escenarios ("¿cuánto ahorraría con placas solares?", "¿qué pasa si
+añado un coche eléctrico?") y detectar anomalías en tiempo real (electrodoméstico averiado, fuga
+de agua, calefacción encendida innecesariamente).
+Módulos del gemelo digital
+MóduloFunciónInput necesario
+Perfil de consumo
+base
+Fingerprint horario del hogar
+(madrugada, mañana, tarde, noche)
+12 meses de facturas + smart
+meter si disponible
+Detector de anomalías
+Alerta cuando el consumo se desvía
+>20% del patrón esperado
+Histórico + telemetría en tiempo
+real (smart meter)
+Simulador de
+escenarios
+Proyecta ahorro/coste de cambios
+estructurales
+Datos públicos de eficiencia
+energética + precios mercado
+Comparativa de
+eficiencia
+Benchmarking vs. hogares similares
+(m2, ocupantes, zona)
+Datos anonimizados del pool de
+usuarios Ahorra 360
+Optimizador de
+consumo
+Sugiere trasladar consumos al valle
+horario
+Perfil tarifario + patrón de uso
+actual
+Escenarios de simulación incluidos
+— Instalación de placas solares: Calcula el payback real basado en consumo propio, precio
+de exportación y coste de instalación medio en la zona del usuario.
+— Compra de vehículo eléctrico: Proyecta el incremento de factura eléctrica, el ahorro en
+gasolina y la tarifa óptima para cargar (supervalle nocturno).
+— Cambio de caldera a bomba de calor: Compara coste energético actual de gas/gasoil vs.
+bomba de calor con el mix eléctrico del usuario.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 5
+— Cambio de electrodomésticos: Compara consumo real de electrodoméstico antiguo vs.
+nuevo A+++ con precios reales del mercado.
+— Añadir miembro al hogar: Proyecta el impacto de un nuevo ocupante en todas las
+categorías de suministro.
+— Teletrabajar 5 días/semana: Recalcula consumo eléctrico, calefacción y banda ancha por
+trabajo en casa.
+6 escena
+rios
+tiempo
+real+23%NPS +42
+simulables en v1detección de anomalías
+reducción de consumo
+mediaimpacto en satisfacción
+MONETIZACIÓN: La IA Gemela es el argumento definitivo para vender el plan "Familia Pro"
+a 9,99€/mes. El gemelo es el producto de retención más potente: una vez que el usuario
+lleva 6 meses construyendo su modelo, no lo abandona porque perdería todo el histórico
+aprendido. LTV estimado de usuario con gemelo activo: 4,2 años vs. 1,8 años sin él.
+Stack tecnológico recomendado
+ComponenteTecnologíaAlternativa
+Motor de series temporalesProphet (Meta) + LSTM PyTorchAmazon Forecast
+Detección de anomalíasIsolation Forest + DBSCANAzure Anomaly Detector
+Simulador de escenarios
+Modelo físico simplificado
+(EnergyPlus lite)OpenAI function calling
+Almacenamiento de perfil
+TimescaleDB (PostgreSQL +
+series temporales)InfluxDB
+Smart meter integrationAPI DATADIS (España oficial)Lectura OCR facturas
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 6
+03
+PODER COLECTIVO
+Club de 10.000
+Cuando 10.000 hogares hablan en bloque, Endesa baja el precio.
+Automatizado.
+¿Qué es?
+El Club de 10.000 es un sistema de subasta inversa colectiva automatizado. Ahorra 360 agrega en
+tiempo real usuarios con el mismo tipo de contrato (mismo producto eléctrico, misma telco, misma
+aseguradora) y cuando alcanza un volumen suficiente, lanza una subasta privada entre
+proveedores. Los proveedores pujan a la baja. El grupo con mejor oferta se activa
+automáticamente. El usuario no hace nada: recibe una notificación "Hemos conseguido -32% para
+tu contrato de luz. ¿Activas el cambio?"
+Mecánica de la subasta
+FaseAcciónResponsableDuración
+1.
+Agregación
+Ahorra 360 agrupa usuarios con
+perfil compatible (consumo, zona,
+tarifa actual)Sistema automáticoContinuo
+2. Umbral
+activado
+Al alcanzar N usuarios
+(configurable, ej: 5.000), se lanza
+aviso a proveedoresSistema automáticoInmediato
+3. Subasta
+privada
+Los proveedores acceden al portal
+B2B y presentan ofertas (CPA +
+descuento al usuario)Proveedores24-48 horas
+4.
+Selección
+Algoritmo elige la oferta con mayor
+ahorro neto para el usuario (no la
+mayor CPA para Ahorra 360)Algoritmo neutralAutomático
+5. Notificac
+ión push
+Usuario recibe oferta con ahorro
+estimado en euros. 1 botón para
+activar.AppTiempo real
+6. Portabili
+dad
+Si acepta, el piloto automático
+gestiona el cambio completoRPA48-72 horas
+Modelo de ingresos del Club
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 7
+El modelo de ingresos combina CPA grupal y margen de eficiencia. Cuando se activa un grupo de
+5.000 usuarios y la energética paga 60€ CPA por cabeza, el ingreso bruto del evento es 300.000€.
+Ahorra 360 dedica el 30% a cubrir costes operativos del evento y retiene el 70% neto. Un solo
+evento semanal de 5.000 usuarios genera 210.000€ de margen. Con 4 categorías activas (luz, gas,
+fibra, seguros) y frecuencia quincenal, el potencial mensual supera los 1,5M€ de margen bruto en
+estado maduro.
+60-100€300K€-32%1 click
+CPA por usuario a
+energética
+ingreso por evento de
+5.000 usuarios
+descuento medio
+conseguido
+para que el usuario active
+el cambio
+EFECTO VIRAL: El Club tiene un mecanismo de viralidad natural. Cuantos más usuarios se
+unen, mayor el descuento conseguido. Ahorra 360 puede comunicar públicamente el
+contador de usuarios en tiempo real ("faltan 1.753 hogares para conseguir -32%"). Esto
+genera un FOMO legítimo y genuino, porque el descuento extra es real y verificable. Los
+usuarios lo comparten orgánicamente para acelerar el umbral.
+Aspectos legales y de cumplimiento
+El Club debe estructurarse jurídicamente como plataforma de intermediación (no como
+comercializadora). Ahorra 360 actúa como agente que facilita la contratación en nombre del
+usuario, con poder notarial limitado para este acto. Es necesario registro como Agente
+Comercializador en la CNMC para la categoría eléctrica. Para telecomunicaciones, registro como
+distribuidor en SETSI. Para seguros, registro como corredor en la DGSFP. Modelo análogo ya
+validado en España por cooperativas como SomEnergía.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 8
+04
+JUSTICIA AUTOMÁTICA
+Modo Activista
+La IA detecta abusos masivos y lanza demandas colectivas. El dinero llega
+sin que muevas un dedo.
+¿Qué es?
+El Modo Activista es un motor de detección de patrones abusivos a escala. Cuando la IA detecta el
+mismo cargo ilegal, cláusula abusiva o cobro no autorizado en más de 500 usuarios, activa
+automáticamente el protocolo de acción colectiva: notifica a los afectados, obtiene mandatos
+electrónicos y lanza una reclamación masiva coordinada con un despacho de abogados aliado. El
+éxito fee (20% de lo recuperado) financia el proceso. El usuario no paga nada por adelantado.
+Tipos de abusos detectados
+Tipo de abusoCómo se detecta
+Monto medio
+recuperable
+Mantenimiento integral no
+autorizado
+OCR detecta línea en factura sin
+contrato firmado180-420€ por usuario
+Tarifa incorrecta tras período
+promocional
+Comparación automática factura
+vs. contrato original240-600€ por usuario
+Cobro por servicios no
+contratados (telefonía)
+Detección de conceptos sin
+correspondencia en el contrato120-360€ por usuario
+Permanencia no informada
+en portabilidad
+Cruce de fecha de cambio vs.
+contrato de origen60-200€ por usuario
+Penalización indebida en baja
+anticipada
+Comparación con regulación
+CNMC vigente50-300€ por usuario
+Redondeo sistemático al alza
+en kWh
+Análisis estadístico de distribución
+de decimales
+20-80€/año por
+usuario
+Flujo del proceso de reclamación colectiva
+Paso 1. Detección: La IA identifica patrón abusivo en >500 usuarios. Umbral configurable por
+tipo de abuso.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 9
+Paso 2. Análisis jurídico: El sistema clasifica el abuso según normativa (LGDC, LOSSEAR,
+LGSS) y estima probabilidad de éxito (>70% para activar).
+Paso 3. Mandato electrónico: Notificación push a usuarios afectados con descripción clara del
+abuso y del importe reclamable. Aceptación con 1 tap.
+Paso 4. Formación del grupo: Una vez alcanzado el mínimo de 200 mandatos, se formaliza el
+grupo de acción con despacho aliado.
+Paso 5. Reclamación extrajudicial: Burofax certificado colectivo al proveedor exigiendo
+devolución en 15 días hábiles.
+Paso 6. Escalada judicial: Si no hay respuesta, demanda colectiva en Juzgado de lo Mercantil.
+Financiada por litigation finance.
+Paso 7. Distribución de recuperado: Dinero devuelto directamente en cuenta del usuario
+(80%). Ahorra 360 retiene 20% como honorarios de éxito.
+20%
+500
+usuarios287€2,1M€
+success fee sobre
+recuperado
+umbral mínimo para
+activar
+recuperación media por
+usuario
+recuperado en primera
+demanda piloto
+DIFERENCIADOR BRUTAL: Ningún servicio en España hace esto de forma automática.
+OCU, Facua y asociaciones de consumidores lo hacen manualmente y tardan meses.
+Ahorra 360 lo hace en días con IA y con cero fricción para el usuario. Es el producto que
+convierte a Ahorra 360 en un enemigo público declarado de las grandes utilities y en el héroe
+absoluto del consumidor español.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 10
+05
+INTELIGENCIA SOCIAL
+Mapa de Vergüenza
+Tu barrio paga 34€ menos. ¿Quieres saber por qué?
+¿Qué es?
+El Mapa de Vergüenza es una capa de visualización geoespacial que muestra, mediante un mapa
+de calor anonimizado, cuánto paga de media cada zona postal por cada categoría de suministro. El
+usuario puede ver si su barrio paga más que la media, más que la zona óptima cercana y más que
+hogares equivalentes en otras ciudades. La comparativa social activa una poderosa palanca
+psicológica: nadie quiere pagar más que su vecino.
+Datos y privacidad
+Capa de datosGranularidadPrivacidad
+Factura media por código
+postal5 dígitos CP
+Mínimo 50 usuarios por celda para publicar. Ruido
+diferencial añadido (epsilon=0.8)
+Tarifa más común en zonaProvinciaSolo categórica, nunca precio individual
+Potencial de ahorro por
+zonaMunicipioCalculado sobre media, no sobre usuario individual
+Benchmarking por tipo de
+hogarNacionalSegmentación anonimizada: m2, ocupantes, tipo
+Palancas de viralidad del mapa
+— Captura de pantalla optimizada: el mapa tiene un botón "compartir" que genera una imagen
+con tu zona y el ahorro potencial, lista para Instagram Stories.
+— "Retador de barrio": botón que envía a un amigo de la misma zona el mensaje "¿Sabes que
+tu barrio paga 28€/mes de más en luz?"
+— Ranking mensual de barrios más ahorradores de España, publicado como PR gratuito en
+medios.
+— Integración con comunidades de vecinos: el administrador puede ver el ahorro potencial del
+edificio completo.
+— Widget embebible para webs de ayuntamientos y asociaciones vecinales.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 11
+8.100RGPD+340%CAC /4
+códigos postales en
+España
+compliant con privacidad
+diferencial
+incremento de
+comparticiones con mapa
+coste de adquisición vía
+viralidad
+MONETIZACIÓN: El mapa genera ingresos directos e indirectos. Directo: los ayuntamientos
+y administraciones de fincas pueden comprar informes de zona detallados
+(300-500€/informe). Indirecto: es el mecanismo de adquisición de usuarios más potente del
+producto. Un usuario que ve que su barrio paga 34€ de más tiene una conversión a registro
+del 68% frente al 12% del funnel estándar.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 12
+06
+AUTOMATIZACIÓN RADICAL
+Voz IA Negociadora
+La IA llama al call center, aguanta las esperas y negocia tu bajada. Tú solo
+ves el resultado.
+¿Qué es?
+La Voz IA Negociadora es un agente conversacional de voz que realiza llamadas telefónicas reales
+a los servicios de atención al cliente de las compañías. Usando síntesis de voz de alta calidad
+(indistinguible de un humano en tests ciegos), el agente navega los menús IVR, aguanta las
+esperas, identifica al agente humano y ejecuta un protocolo de negociación entrenado con miles de
+transcripciones reales de llamadas de retención. El usuario recibe una notificación cuando la
+negociación termina con el resultado.
+Árbol de negociación del agente
+FaseTáctica de la IASi el agente dice...
+Apertura
+Identificación con DNI/NIF del usuario
+(con consentimiento previo). Solicitud
+directa de revisión de tarifa.—
+Primera
+negativa
+Mencionar competidores con precio
+inferior. Datos precisos de mercado."No podemos bajar más"
+Segunda
+negativa
+Anunciar intención de portabilidad.
+Solicitar código de tramitación de baja."Es la mejor tarifa"
+Retención
+agresiva
+Reconocer la oferta de retención pero
+pedir más. Técnica del "silencio" (3
+segundos)."Le ofrezco un descuento del 10%"
+Escalada
+supervisor
+Solicitar hablar con departamento de
+retención o supervisor directo."No puedo hacer más"
+Cierre
+favorable
+Confirmar cambio, solicitar número de
+confirmación y email con condiciones.Cualquier mejora
+Cierre con
+baja
+Tramitar portabilidad en el mismo acto.
+Solicitar fecha efectiva.Negativa total
+Stack tecnológico
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 13
+ComponenteTecnología recomendada
+Síntesis de voz
+ElevenLabs Conversational AI o Vapi.ai — latencia <300ms, voz natural
+en español
+Reconocimiento de voz
+Whisper (OpenAI) en tiempo real con modelo fine-tuned en español
+ibérico
+Motor de decisionesGPT-4o con function calling + árbol de negociación parametrizado
+Marcación y telefonía
+Twilio Programmable Voice — números virtuales españoles, grabación
+legal
+Navegación IVR
+DTMF + detección de menú por NLP para navegar el laberinto del call
+center
+Transcripción y análisis
+Almacenamiento cifrado de transcripción + análisis post-llamada con
+métricas
+82%6 min
+-18€/me
+sCero
+tasa de éxito en pruebas
+piloto
+duración media de
+llamadaahorro medio conseguido
+tiempo invertido por el
+usuario
+AVISO LEGAL IMPORTANTE: La llamada debe iniciarse con identificación del agente como
+"sistema automatizado de Ahorra 360 actuando en nombre de [nombre del usuario]". La Ley
+34/2002 y la LSSI permiten la representación automatizada con consentimiento expreso
+previo del representado. Grabar la llamada requiere aviso al inicio. Se recomienda revisión
+con despacho especializado antes del lanzamiento.
+Factor viral
+El momento más compartible del producto. El usuario puede ver la transcripción en tiempo real
+desde la app como si fuera un chat. "Mira cómo mi app le dijo a Movistar que iba a portarse si no
+bajaban" es el tipo de contenido que genera 50.000 impresiones orgánicas en Twitter/X. Se
+recomienda diseñar la UI de transcripción pensando en la captura de pantalla desde el primer día.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 14
+07
+IDENTIDAD FINANCIERA
+Pasaporte de Consumidor
+Tu score 0–1000 que las compañías compiten por mejorar. El poder de
+negociación cambia de manos.
+¿Qué es?
+El Pasaporte de Consumidor es un score de reputación portable que sintetiza el valor del usuario
+como cliente. Combina historial de pagos, consumo, fidelidad, propensión al cambio y poder de
+influencia (cuántos usuarios ha referido). Las compañías acceden al score (anonimizado por
+defecto) y pueden hacer ofertas proactivas a usuarios de alto valor. El usuario siempre tiene el
+control de qué empresas pueden ver su perfil y cuándo.
+Componentes del score
+DimensiónPesoCómo se calculaRango
+Fiabilidad de pago25%
+Histórico de domiciliaciones, ausencia de
+impagos, puntualidad0-250
+Perfil de consumo20%
+Regularidad, previsibilidad, consumo sin
+anomalías0-200
+Poder de cambio real20%
+Historial de portabilidades, negociaciones
+exitosas, facilidad de cambio0-200
+Influencia social15%
+Usuarios referidos, participación en Club,
+reviews verificadas0-150
+Eficiencia energética10%
+Consumo vs. media de hogar similar,
+mejoras implementadas0-100
+Engagement con el
+servicio10%
+Uso activo de Ahorra 360, respuesta a
+recomendaciones0-100
+Modelo de monetización B2B del Pasaporte
+Producto B2BPrecioDescripción
+Acceso a pool de usuarios Prime
+(>750)3.000€/mes
+Vista anonimizada de usuarios Prime en zona. Sin
+datos personales hasta que el usuario acepta.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 15
+Producto B2BPrecioDescripción
+Envío de oferta proactiva (opt-in)
+25€ por
+oferta
+enviada
+La empresa envía una oferta a usuarios que han
+activado "acepto ofertas de nuevas compañías"
+Informe de mercado mensual1.500€/mes
+Análisis de competencia, precios medios, churn de
+compañías basado en datos reales del pool
+API de verificación de score
+0,50€/consul
+ta
+La compañía verifica el score de un cliente suyo
+antes de ofrecerle promoción
+0–1.000Top 8%4x25€
+rango del scoreusuarios Prime en España
+más ofertas recibidas por
+Prime vs. standard
+ingreso por oferta B2B
+enviada
+VISIÓN A LARGO PLAZO: El Pasaporte de Consumidor podría convertirse en el estándar de
+identidad financiera del hogar español, comparable a lo que es el FICO score en EE.UU.
+para crédito hipotecario. Si Ahorra 360 alcanza 2M de usuarios, posee el dataset de
+comportamiento de consumo doméstico más completo de España. Eso vale cientos de
+millones a cualquier banco, aseguradora o fondo.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 16
+08
+FINTECH INTEGRADO
+Ahorra 360 Card
+Cada café que tomas paga tu factura de luz. El cashback inteligente que se
+aplica solo.
+¿Qué es?
+La Ahorra 360 Card es una tarjeta de débito o prepago virtual (y física opcional) que genera
+cashback automático en cada compra. A diferencia de las tarjetas de cashback convencionales
+(que devuelven dinero en cuenta), el cashback de Ahorra 360 se aplica directamente a la factura
+del hogar más cara del mes. El usuario literalmente ve cómo sus gastos cotidianos reducen su
+factura de la luz en tiempo real.
+Estructura de cashback por categoría
+Categoría de gasto
+Cashback
+standard
+Cashback
+PremiumSe aplica a...
+Supermercados1,5%2,5%Factura de luz (mayor)
+Gasolineras2,0%3,0%Factura más cara del mes
+Restaurantes y cafeterías1,0%2,0%Cualquier suministro (a elegir)
+Amazon y e-commerce1,0%1,5%Suscripciones digitales
+Farmacias1,5%2,0%Seguro de salud (si tiene)
+Otros0,5%1,0%Factura más cara del mes
+Modelo de negocio de la tarjeta
+La tarjeta se emite bajo licencia de dinero electrónico de un banco aliado (modelo BaaS - Banking
+as a Service). Los ingresos de la tarjeta provienen de: (1) Interchange fee: 0.2-0.3% de cada
+transacción pagado por el comercio vía Visa/MC. (2) Margen diferencial: el cashback prometido es
+menor que el interchange cobrado, generando un margen neto del 0.3-0.8% por transacción. (3)
+Efecto retención: usuarios con tarjeta tienen churn 3x menor que usuarios sin tarjeta.
+Partners y arquitectura
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 17
+ComponentePartner recomendadoAlternativa
+Emisor de e-money
+Treezor (Francia, regulado en
+España)Railsbank, Modulr
+Programa de tarjetaVisa (Fintech Fast Track)Mastercard Accelerate
+Core bancarioMambu o Thought MachineBanking Circle
+KYC / AMLVeriff o OnfidoJumio
+Cashback engine
+Desarrollo propio sobre Kafka
+streamsMarqeta
+2%47€/mes3x
+12
+meses
+cashback medio en
+compras
+cashback medio en
+factura Premium
+menor churn en usuarios
+con tarjeta
+plazo de obtención de
+licencia e-money
+EFECTO FLYWHEEL: La tarjeta crea un círculo virtuoso perfecto. El usuario gasta → el
+cashback reduce su factura → la factura baja valida el valor del producto → el usuario refiere
+a amigos → el pool de compradores crece → mayor poder de negociación en el Club de
+10.000 → mayores descuentos → mayor retención. Cada usuario con tarjeta activa es 4x
+más rentable que uno sin ella.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 18
+09
+INTELIGENCIA DE MERCADO
+Radar Macro
+La IA lee el mercado energético antes que tu compañía. Te avisamos 60–90
+días antes.
+¿Qué es?
+El Radar Macro es una capa de inteligencia de mercado que monitoriza continuamente las señales
+macroeconómicas y regulatorias que impactan en las facturas del hogar. Procesa decisiones del
+BCE, precios de futuros de gas y petróleo, anuncios de OPAs en el sector energético y telco,
+cambios legislativos en tramitación parlamentaria y alertas meteorológicas de largo plazo. Cuando
+detecta una señal con impacto probable en la factura del usuario, lanza una alerta accionable con
+60-90 días de antelación.
+Fuentes de datos monitorizadas
+CategoríaFuenteSeñal buscadaHorizonte
+Mercados
+energéticos
+ICE, CME, OMIE,
+MIBGAS
+Movimientos >15% en futuros a
+3-6 meses60-90 días
+Regulación
+española
+BOE, CNMC, IDAE,
+MITECO
+Proyectos de Real Decreto,
+consultas públicas30-180 días
+Regulación EU
+EUR-Lex, Comisión
+Europea, ACER
+Directivas en tramitación,
+REPowerEU updates60-365 días
+Operaciones
+corporativas
+CNMV, Bloomberg,
+Reuters
+OPAs, fusiones, quiebras en
+sector energy/telcoInmediato
+Meteorología
+estacional
+AEMET, Copernicus
+Climate
+Previsiones de temperatura a 3
+meses90 días
+Conflictos
+geopolíticos
+Reuters, AP, fuentes
+oficiales OTAN
+Riesgos de suministro de
+gas/petróleoVariable
+Tipos de alertas generadas
+Alerta de subida energética: TTF supera umbral. Recomendación: bloquear tarifa fija antes
+de que suba. Acción: botón directo a comparador de tarifas fijas.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 19
+Oportunidad de bajada: Exceso de generación renovable previsto. Recomendación:
+cambiar a PVPC o tarifa indexada. Ahorro estimado: X€/mes.
+Alerta de cambio regulatorio: Nueva normativa impacta en cargos de tu factura.
+Explicación en lenguaje llano + acción recomendada.
+Alerta de consolidación de mercado: OPA aprobada en tu telco. Los precios subirán en
+6-9 meses históricamente. Recomendación: cambiar ahora mientras hay oferta de retención.
+Alerta meteorológica de consumo: Verano atípicamente caluroso previsto.
+Recomendación: revisar tarifa de discriminación horaria para aire acondicionado.
+60–90
+días
+12
+fuentes+156€8 tipos
+antelación media de alertade datos monitorizadas
+ahorro medio por acción
+proactivade alertas diferenciadas
+MONETIZACIÓN B2B: El Radar Macro tiene una segunda vida como producto de datos
+institucionales. Fondos de inversión, utilities, aseguradoras y consultoras energéticas
+pagarían 5.000-15.000€/mes por acceso a los indicadores del Radar más el comportamiento
+real de los consumidores (anonimizado). Es el embrión del data lake institucional descrito en
+el whitepaper original, pero con un producto concreto y vendible desde el día 1.
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 20
+Roadmap de implementación
+Feature
+Complejid
+adImpactoFasePrerrequisito
+Mapa de VergüenzaMediaMuy alto (viral)MVP+1Pool de 5K+ usuarios
+Club de 10.000Alta
+Muy alto
+(ingresos)MVP+1
+Acuerdos B2B
+energéticas
+Modo OráculoAltaAlto (retención)MVP+112 meses de histórico
+Voz IA NegociadoraMuy altaMuy alto (viral)MVP+2Marco legal revisado
+Modo ActivistaAltaBrutal (PR)MVP+2
+Despacho aliado + 500
+casos
+IA Gemela del HogarMuy altaAlto (retención)MVP+2
+Smart meter API
+(DATADIS)
+Pasaporte de
+ConsumidorMediaAlto (B2B)MVP+3500K+ usuarios activos
+Ahorra 360 CardMuy alta
+Transformacion
+alMVP+3
+Licencia e-money (12
+meses)
+Radar MacroMediaAlto (retención)MVP+1Integración APIs mercado
+Potencial de ingresos combinado (estado maduro, 500K usuarios)
+FeatureModelo de ingreso
+Potencial anual
+estimado
+Club de 10.000CPA por evento (60-100€ × N usuarios)8-15M€/año
+Modo ActivistaSuccess fee 20% de recuperado4-8M€/año
+Pasaporte de ConsumidorB2B: acceso + ofertas + informes3-6M€/año
+Radar MacroB2B institucional + premium retención2-4M€/año
+Ahorra 360 CardInterchange + spread de cashback4-9M€/año
+Modo OráculoUpsell Plan Pro + tarifa fija con margen2-5M€/año
+Voz IA NegociadoraIncluido en Premium / by-call 4,99€1-3M€/año
+IA GemelaUpsell Plan Familia Pro 9,99€/mes3-6M€/año
+
+AHORRA 360 — Features Bible v1.0 — ConfidencialPágina 21
+FeatureModelo de ingreso
+Potencial anual
+estimado
+Mapa de VergüenzaInformes municipales + adquisición viral0,5-1M€/año
+POTENCIAL TOTAL COMBINADO: Con las 9 features en estado maduro y 500K usuarios
+activos, el ARR combinado se sitúa entre 27M€ y 57M€/año. Con 1M de usuarios, ese rango
+se dobla. Valoración implícita a múltiplo x8 ARR: entre 216M€ y 456M€. Objetivo de M&A;:
+banco retail o utility buscando capa de datos de consumo doméstico. Precio objetivo de exit:
+300-500M€ en el horizonte 2028-2030.
+Ahorra 360 — Features Bible v1.0 · Documento confidencial de producto · 2025 · founders@ahorra360.es ·
+demo.ahorra360.es/dashboard
